@@ -19,7 +19,8 @@ const config: NextConfig = {
       "frame-ancestors 'none'",
       "object-src 'none'",
       "base-uri 'self'",
-      "form-action 'self' https://*.supabase.co",
+      // Chromium checks the entire POST → Supabase → Google redirect chain.
+      `form-action 'self' ${host} https://accounts.google.com`,
       "font-src 'self' data:",
     ].join("; ");
     return [
