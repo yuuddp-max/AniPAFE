@@ -86,6 +86,12 @@ test("共通ヘッダーのログイン表示・プロフィール保存後の�
   await expect(
     account.getByText("ヘッダー表示テスト", { exact: true }),
   ).toHaveCount(0);
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
 });
 test("Google PKCE開始・スコープ・callback送信先", async ({ request }) => {
   const response = await request.post("/auth/login", {

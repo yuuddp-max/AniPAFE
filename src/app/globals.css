@@ -1396,6 +1396,7 @@ td button {
   }
   .login-hero {
     grid-template-columns: 1fr;
+    overflow: clip;
     padding: 45px 25px 25px;
     gap: 35px;
   }
