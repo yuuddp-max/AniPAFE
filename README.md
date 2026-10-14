@@ -10,7 +10,9 @@ Next.js 16 / React / TypeScript / Tailwind CSS / Supabase Auth・PostgreSQLで�
 
 ## 現在の外部設定状況
 
-**ソースとDB migrationは実装済みですが、本番公開・Google実認証・Supabaseクラウド接続は設定待ちです。** 接続済みの `yuuddp-max's Org` を新規作成先としてユーザーに確認済みです。組織参照は成功しましたが、Supabase MCPの `get_cost` が `MCP tool get_cost was not returned by tools/list` で利用できず、費用確認を経たプロジェクト作成は実行できませんでした。既存プロジェクトには一切変更を加えていません。
+**専用SupabaseのDB設定・初期データ取込・ローカル接続は完了しています。Google実認証とVercel公開は設定待ちです。** ユーザーが `yuuddp-max's Org` 内に新規作成した **AniPAFE**（ref: `ypsvsdaiyfjbzcffylju`、Tokyo）にのみmigrationを適用しました。有効107作品・テーマ55作品・サムネイル107件を確認し、publicの全8テーブルでRLSを有効にしています。既存のRamen db Tokyoには変更していません。
+
+ローカルの `.env.local` はこの専用プロジェクトに接続する設定済みです。Gitには含めません。クラウド上で自薦・他人の票・管理者アクセス・二重確定・確定後ID変更を検証し、検証用アカウントと票は全件ロールバックしました。投票期間は未設定・受付OFFのままです。Google ProviderはまだOFFです。
 
 外部設定がなくても `npm run dev` で説明・ログイン画面を表示できます。投票画面にはGoogleログインが必要です。アプリにデモログインや認証回避の経路はありません。検証専用の認証通信ハーネスは `tests/` 配下だけにあります。
 
@@ -40,6 +42,8 @@ Windowsの制限環境でTurbopackの子プロセス起動に失敗したため�
 
 ### DB適用
 
+上記AniPAFEプロジェクトには適用済みです。初期migration/seedを再実行する必要はありません。以下は別の新規専用環境を再現する場合の手順です。local migration名はクラウドmigration履歴と一致させています。
+
 ```powershell
 npx supabase login
 npx supabase link --project-ref NEW_ANIPAFE_PROJECT_REF
@@ -50,8 +54,9 @@ npx supabase db push --include-seed
 
 CLIにDB接続権限がない場合は、新規プロジェクトのSQL Editorで順番に実行します。
 
-1. `supabase/migrations/20261014102109_initial_voting.sql`
-2. `supabase/seed.sql`
+1. `supabase/migrations/20261014114241_initial_voting.sql`
+2. `supabase/migrations/20261014114745_add_vote_lookup_indexes.sql`
+3. `supabase/seed.sql`（運営者の手元で生成）
 
 CLIで適用済みなら同じmigrationをSQL Editorで再実行しないでください。seedは作品をupsertし、既存票を消しません。ただし票が存在する場合はbootstrap処理が拒否するため、その後の再取込は運営画面から行います。
 
@@ -64,13 +69,14 @@ select code, name, min_votes, max_votes from public.award_types order by display
 select tablename, rowsecurity from pg_tables where schemaname = 'public';
 ```
 
-Supabase Security Advisorと `npx supabase db lint --linked` も実行してください。リモートAdvisorの実行結果は本環境ではまだありません。
+クラウドのSecurity Advisorは指摘0件です。Performance Advisorが指摘した外部キーの索引不足2件を修正済みです。残るINFOは投票開始前の未使用索引3件だけで、これを理由に索引を削除しません。[Advisorの説明](https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index)。CLI接続後は `npx supabase db lint --linked` も実行できます。
 
 ## 2. Google OAuth
 
 1. [Google Cloud Console](https://console.cloud.google.com/) で、このイベント用のプロジェクトとOAuth同意画面を用意します。アプリ名を「AniPAFE2026 人気投票」にします。
 2. OAuthクライアントを **ウェブアプリケーション** として作成します。
 3. Googleの **承認済みのリダイレクトURI** に、Supabase Google Provider欄に表示されるcallback（通常 `https://NEW_REF.supabase.co/auth/v1/callback`）を登録します。ここにNext.jsのcallbackを代わりに入れないでください。
+   このプロジェクトのGoogle側callbackは **`https://ypsvsdaiyfjbzcffylju.supabase.co/auth/v1/callback`** です。
 4. Supabase → Authentication → Sign In / Providers → **Google** を有効にし、Google Client ID / Client Secretを登録します。SecretはSupabase管理画面内だけで扱い、リポジトリやチャットへ貼らないでください。
 5. SupabaseのURL Configurationで、Site URLをローカルでは `http://localhost:3000`、本番では公開URLにします。Redirect URLsに `http://localhost:3000/auth/callback` と `https://YOUR_DOMAIN/auth/callback` を登録します。無制限ワイルドカードは使いません。
 6. 不要な認証Provider、匿名サインインをOFFにします。コード・DBでもGoogle identityがないユーザーは拒否します。スコープは `openid email profile` のみです。

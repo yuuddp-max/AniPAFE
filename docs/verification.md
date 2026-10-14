@@ -59,7 +59,7 @@ E2Eで実行したケース：
 
 - `src/app/`：ログイン、プロフィール、部門、確認/完了、運営、API、OAuth callback
 - `src/components/`：作品カード、プレイヤー、選択ペイン、保存状態、運営画面
-- `supabase/migrations/20261014102109_initial_voting.sql`：テーブル、制約、RLS、RPC、監査
+- `supabase/migrations/20261014114241_initial_voting.sql`：テーブル、制約、RLS、RPC、監査
 - `supabase/seed.sql`：107作品とサムネイルの初期データ
 - `scripts/`：CSV/XLSX取込、メタデータ再取得、seed再生成
 - `tests/`：DB負テストと実画面からのE2E
@@ -67,11 +67,22 @@ E2Eで実行したケース：
 
 ## 本番で残る確認
 
-1. 専用新規Supabaseの実作成・migration/seedのリモート適用。MCP費用確認ツール不提供のため未実行。既存プロジェクトへの変更なし。
+1. 専用Supabase（AniPAFE、`ypsvsdaiyfjbzcffylju`）の作成・migration/seed適用は完了。既存Ramen DBへの変更なし。
 2. Google Client ID/Secret設定、Site URL/Redirect URLs設定、実Googleアカウントでのログイン・ログアウト・再ログイン。
-3. Supabase Security Advisorとクラウド上の認証済み/未認証Data API負テスト。PGliteテストは実PostgreSQL制約の検証であり、PostgRESTの設定検証を代替しない。
+3. クラウドSecurity Advisorは指摘0件、実HTTPで未認証の動画・プロフィール・明細と投票/管理RPCが401になることを確認。認証済みのData API/E2Eは実Google設定後に最終確認する。
 4. Vercelへの公開、環境変数とcallbackの一致確認、公開サイトで投票→運営CSVの通し確認。
 5. 運営による管理者UUID・JST投票期間・問い合わせ先・保管削除方針の確定。初期状態は投票受付OFF。
 6. 公式埋め込みの実再生確認。視聴制限・作品別の埋め込み禁止等により、全作品の再生成功は保証できない。常に外部リンクを用意。
 
 Windows制限環境ではnpmネットワークアクセス、Edge/loopback通信、ビルド出力に権限が必要でした。許可された実行で検証しています。Turbopackの子プロセス起動問題を避けてWebpackを採用しています。
+
+## Supabaseクラウドでの追加検証（2026-10-14）
+
+- 専用新規プロジェクト名・ref・Tokyoリージョン、初期publicテーブルとmigration履歴が空であることを確認してから適用。
+- Migration履歴：`20261014114241_initial_voting`、`20261014114745_add_vote_lookup_indexes`。ローカルのSQL名も一致。
+- DB実測：有効107作品、テーマ55作品、サムネイル107件、6部門、全8テーブルRLS有効。
+- 権限実測：anonの動画読取/下書きRPC、authenticatedの明細直接INSERT/bootstrap実行はすべて権限なし。
+- 公開キーで実HTTP：videos/profiles/ballot_entries、save_draft/admin_report/bootstrap_importの6アクセスを401で拒否。Google設定APIは200・Google Provider OFF。
+- `supabase/tests/cloud_verification.sql` をクラウドのPostgreSQLで実行し、自薦拒否、10件の下書き保存、確定、二重確定の冪等性、確定後IDロック、一般ユーザーの運営RPC拒否、他人のバロットと明細非表示の8検証がtrue。
+- 検証内のGoogle identity・プロフィール・票・一時投票期間はロールバック。終了後users/profiles/ballots/entries/検証アカウントは0件、投票受付OFF・期間未設定を再確認。
+- Security Advisorは指摘0件。索引不足2件は追加migrationで修正。Performance Advisorには未使用索引3件のINFOのみ残る（投票開始前のため保持）。[Advisor説明](https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index)

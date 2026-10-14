@@ -1,5 +1,5 @@
 import { PGlite } from "@electric-sql/pglite";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { parseImport } from "../src/lib/importer";
 import { fixtureCsv, fixtureSeedSql } from "./fixtures";
 export const U1 = "00000000-0000-4000-8000-000000000001",
@@ -14,11 +14,11 @@ export async function database() {
     grant usage on schema auth to anon,authenticated,service_role;grant execute on function auth.uid() to anon,authenticated,service_role;
     insert into auth.users values ('${U1}'),('${U2}'),('${ADMIN}'),('${OTHER}');
     insert into auth.identities values ('${U1}','google'),('${U2}','google'),('${ADMIN}','google'),('${OTHER}','email');`);
-  const migration = await readFile(
-    "supabase/migrations/20261014102109_initial_voting.sql",
-    "utf8",
-  );
-  await db.exec(migration);
+  const migrations = (await readdir("supabase/migrations"))
+    .filter((name) => /^\d+_.*\.sql$/.test(name))
+    .sort();
+  for (const name of migrations)
+    await db.exec(await readFile(`supabase/migrations/${name}`, "utf8"));
   const seed = await parseImport(await fixtureCsv(), "videos_seed.csv");
   // Execute the delivered seed verbatim, including escaping and thumbnail updates.
   await db.exec(await fixtureSeedSql());
