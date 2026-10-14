@@ -111,7 +111,7 @@ test("Google PKCE開始・スコープ・callback送信先", async ({ request })
   expect(url.searchParams.get("code_challenge")).toBeTruthy();
   expect(response.headers()["set-cookie"]).toContain("code-verifier");
 });
-test("4列・ID非表示・左右ページ切替・スワイプと選択感想の保持", async ({
+test("3列・ID非表示・左右ページ切替・スワイプと選択感想の保持", async ({
   page,
   context,
   request,
@@ -139,7 +139,7 @@ test("4列・ID非表示・左右ページ切替・スワイプと選択感想�
         (element) =>
           getComputedStyle(element).gridTemplateColumns.split(" ").length,
       ),
-  ).toBe(4);
+  ).toBe(3);
   await expect(page.locator(".video-id")).toHaveCount(0);
   expect(await page.locator(".card-body").allTextContents()).not.toEqual(
     expect.arrayContaining([expect.stringMatching(/\bsm\d+\b/)]),
