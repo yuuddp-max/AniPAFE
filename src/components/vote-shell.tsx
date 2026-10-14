@@ -59,7 +59,14 @@ export function VoteShell({ children }: { children: React.ReactNode }) {
               aria-current={path === `/vote/${a.code}` ? "page" : undefined}
             >
               <span>{a.name}</span>
-              <small>
+              <small
+                className={`award-count${n >= a.min_votes ? " complete" : ""}`}
+                title={
+                  n >= a.min_votes
+                    ? "必要票数を満たしています"
+                    : `あと${a.min_votes - n}作品で必要票数を満たします`
+                }
+              >
                 {n >= a.min_votes ? "✓ " : ""}
                 {n}/{a.max_votes}
               </small>

@@ -54,7 +54,6 @@ export default async function RootLayout({
               <small>ANIME MAD FESTIVAL</small>
             </span>
           </Link>
-          <span className="header-label">みんなで選ぶ、今年の一作。</span>
           <UserNav name={name} admin={admin} />
         </header>
         {children}

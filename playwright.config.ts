@@ -1,4 +1,5 @@
 import { defineConfig } from "@playwright/test";
+const appOrigin = process.env.ANIPAFE_TEST_ORIGIN ?? "http://localhost:3000";
 export default defineConfig({
   testDir: "./tests/e2e",
   workers: 1,
@@ -6,7 +7,7 @@ export default defineConfig({
   timeout: 60000,
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: appOrigin,
     channel: "msedge",
     trace: "retain-on-failure",
   },
@@ -18,14 +19,14 @@ export default defineConfig({
       timeout: 30000,
     },
     {
-      command: "npm run dev",
-      url: "http://localhost:3000/login",
+      command: `npm run dev -- --port ${new URL(appOrigin).port || "3000"}`,
+      url: `${appOrigin}/login`,
       reuseExistingServer: false,
       timeout: 120000,
       env: {
         NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54329",
         NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "test-publishable-only",
-        APP_ORIGIN: "http://localhost:3000",
+        APP_ORIGIN: appOrigin,
       },
     },
   ],

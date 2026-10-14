@@ -1,11 +1,12 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useVotes } from "./vote-provider";
 import { Player } from "./player";
 import { VideoImage } from "./video-image";
 import { pollIsOpen } from "@/lib/validation";
 import type { AwardCode, Video } from "@/lib/types";
+const PAGE_SIZE = 32;
 export function VoteScreen({ code }: { code: AwardCode }) {
   const { data, entries, change, submitted, state } = useVotes(),
     award = data.awards.find((a) => a.code === code)!;
@@ -14,8 +15,10 @@ export function VoteScreen({ code }: { code: AwardCode }) {
     [filter, setFilter] = useState("all"),
     [sort, setSort] = useState("order"),
     [page, setPage] = useState(1),
+    [slideDirection, setSlideDirection] = useState<"next" | "previous">("next"),
     [player, setPlayer] = useState<Video | null>(null),
     [now, setNow] = useState(Date.now());
+  const swipeStart = useRef<{ x: number; y: number } | null>(null);
   useEffect(() => {
     const t = setTimeout(() => {
       setQuery(search);
@@ -61,8 +64,13 @@ export function VoteScreen({ code }: { code: AwardCode }) {
         ),
     [data.videos, code, query, filter, sort, entries],
   );
-  const maxPage = Math.max(1, Math.ceil(videos.length / 24)),
+  const maxPage = Math.max(1, Math.ceil(videos.length / PAGE_SIZE)),
     actualPage = Math.min(page, maxPage);
+  function changePage(next: number) {
+    if (next < 1 || next > maxPage || next === actualPage) return;
+    setSlideDirection(next > actualPage ? "next" : "previous");
+    setPage(next);
+  }
   function toggle(v: Video) {
     if (disabled) return;
     if (selectedIds.has(v.video_id))
@@ -153,99 +161,135 @@ export function VoteScreen({ code }: { code: AwardCode }) {
               <option value="author">投稿者名順</option>
             </select>
           </div>
-          <div className="video-grid">
-            {videos.slice((actualPage - 1) * 24, actualPage * 24).map((v) => {
-              const own = v.author_nico_user_id === data.profile.nico_user_id,
-                chosen = selectedIds.has(v.video_id),
-                full = !chosen && selected.length >= award.max_votes;
-              return (
-                <article
-                  className={`video-card ${chosen ? "chosen" : ""} ${own ? "own" : ""}`}
-                  key={v.video_id}
-                >
-                  <div className="card-media">
-                    <VideoImage
-                      url={v.thumbnail_url}
-                      title={v.title}
-                      order={v.display_order}
-                    />
-                    <button
-                      className="play-button"
-                      aria-label={`${v.title}を再生`}
-                      onClick={() => setPlayer(v)}
-                    >
-                      <span aria-hidden="true">▶</span> 再生
-                    </button>
-                    {chosen && <span className="chosen-badge">✓ 選択中</span>}
-                  </div>
-                  <div className="card-body">
-                    <h3>{v.title}</h3>
-                    <p className="author">{v.author_name}</p>
-                    <span className="video-id">{v.video_id}</span>
-                    {v.theme && (
-                      <p
-                        className={`theme-tag ${code === "theme" ? "prominent" : ""}`}
-                      >
-                        テーマ：{v.theme}
-                      </p>
-                    )}
-                    <div className="card-actions">
-                      <a
-                        href={v.watch_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label={`${v.title}をニコニコで見る`}
-                      >
-                        ニコニコで見る ↗
-                      </a>
-                      <button
-                        aria-pressed={chosen}
-                        disabled={disabled || own || full}
-                        className={`select-button ${chosen ? "selected" : ""}`}
-                        onClick={() => toggle(v)}
-                      >
-                        {own
-                          ? "自分の作品（投票不可）"
-                          : chosen
-                            ? "✓ 選択中"
-                            : full
-                              ? "上限に達しました"
-                              : "＋ 選ぶ"}
-                      </button>
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-          {!videos.length && (
-            <p className="empty-state">
-              条件に合う作品が見つかりませんでした。
-            </p>
-          )}
-          <nav className="pagination" aria-label="作品ページ">
-            <button
-              disabled={actualPage <= 1}
-              onClick={() => {
-                setPage(actualPage - 1);
-                window.scrollTo({ top: 300, behavior: "smooth" });
-              }}
-            >
-              ← 前へ
-            </button>
-            <span>
-              {actualPage} / {maxPage}
+          <div className="catalog-page-summary">
+            <span aria-live="polite" aria-atomic="true">
+              作品ページ {actualPage} / {maxPage}
             </span>
-            <button
-              disabled={actualPage >= maxPage}
-              onClick={() => {
-                setPage(actualPage + 1);
-                window.scrollTo({ top: 300, behavior: "smooth" });
+            <small>左右の矢印・スワイプでページ切替</small>
+          </div>
+          <div className="catalog-slider">
+            <nav className="catalog-page-controls" aria-label="作品ページ">
+              <button
+                aria-label="前の作品ページ"
+                title="前の作品ページ"
+                disabled={actualPage <= 1}
+                onClick={() => changePage(actualPage - 1)}
+              >
+                <span aria-hidden="true">‹</span>
+              </button>
+              <button
+                aria-label="次の作品ページ"
+                title="次の作品ページ"
+                disabled={actualPage >= maxPage}
+                onClick={() => changePage(actualPage + 1)}
+              >
+                <span aria-hidden="true">›</span>
+              </button>
+            </nav>
+            <div
+              className="catalog-slide-viewport"
+              onTouchStart={(event) => {
+                const target = event.target as HTMLElement;
+                const touch = event.touches[0];
+                swipeStart.current =
+                  event.touches.length === 1 &&
+                  !target.closest("button, a, input, textarea, select")
+                    ? { x: touch.clientX, y: touch.clientY }
+                    : null;
+              }}
+              onTouchCancel={() => {
+                swipeStart.current = null;
+              }}
+              onTouchEnd={(event) => {
+                const start = swipeStart.current;
+                swipeStart.current = null;
+                const touch = event.changedTouches[0];
+                if (!start || !touch) return;
+                const dx = touch.clientX - start.x,
+                  dy = touch.clientY - start.y;
+                if (Math.abs(dx) >= 60 && Math.abs(dx) > Math.abs(dy) * 1.5)
+                  changePage(actualPage + (dx < 0 ? 1 : -1));
               }}
             >
-              次へ →
-            </button>
-          </nav>
+              <div
+                key={`${actualPage}-${query}-${filter}-${sort}`}
+                className={`video-grid slide-${slideDirection}`}
+              >
+                {videos
+                  .slice((actualPage - 1) * PAGE_SIZE, actualPage * PAGE_SIZE)
+                  .map((v) => {
+                    const own =
+                        v.author_nico_user_id === data.profile.nico_user_id,
+                      chosen = selectedIds.has(v.video_id),
+                      full = !chosen && selected.length >= award.max_votes;
+                    return (
+                      <article
+                        className={`video-card ${chosen ? "chosen" : ""} ${own ? "own" : ""}`}
+                        key={v.video_id}
+                      >
+                        <div className="card-media">
+                          <VideoImage
+                            url={v.thumbnail_url}
+                            title={v.title}
+                            order={v.display_order}
+                          />
+                          <button
+                            className="play-button"
+                            aria-label={`${v.title}を再生`}
+                            onClick={() => setPlayer(v)}
+                          >
+                            <span aria-hidden="true">▶</span> 再生
+                          </button>
+                          {chosen && (
+                            <span className="chosen-badge">✓ 選択中</span>
+                          )}
+                        </div>
+                        <div className="card-body">
+                          <h3>{v.title}</h3>
+                          <p className="author">{v.author_name}</p>
+                          {v.theme && (
+                            <p
+                              className={`theme-tag ${code === "theme" ? "prominent" : ""}`}
+                            >
+                              テーマ：{v.theme}
+                            </p>
+                          )}
+                          <div className="card-actions">
+                            <a
+                              href={v.watch_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              aria-label={`${v.title}をニコニコで見る`}
+                            >
+                              ニコニコで見る ↗
+                            </a>
+                            <button
+                              aria-pressed={chosen}
+                              disabled={disabled || own || full}
+                              className={`select-button ${chosen ? "selected" : ""}`}
+                              onClick={() => toggle(v)}
+                            >
+                              {own
+                                ? "自分の作品（投票不可）"
+                                : chosen
+                                  ? "✓ 選択中"
+                                  : full
+                                    ? "上限に達しました"
+                                    : "＋ 選ぶ"}
+                            </button>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+              </div>
+              {!videos.length && (
+                <p className="empty-state">
+                  条件に合う作品が見つかりませんでした。
+                </p>
+              )}
+            </div>
+          </div>
         </section>
         <aside id="selected" className="selected-pane">
           <div className="selected-heading">
