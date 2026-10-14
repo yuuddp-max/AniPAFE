@@ -294,6 +294,12 @@ img {
   color: white;
   font-weight: 700;
   flex-shrink: 0;
+  overflow: hidden;
+}
+.account-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .account-dropdown {
   position: absolute;
@@ -759,6 +765,11 @@ img {
   color: white;
   font-weight: 700;
 }
+.award-tabs .award-count.over-limit {
+  background: #a12f30;
+  color: white;
+  font-weight: 700;
+}
 .workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 285px;
@@ -1109,6 +1120,15 @@ img {
   font-size: 9px;
   color: var(--muted);
   margin: 12px 0 20px;
+}
+.selected-pane.over-limit .selected-heading strong,
+.selected-pane.over-limit .selected-heading strong > small,
+.selected-pane.over-limit .selection-guide {
+  color: #a12f30;
+}
+.selected-pane.over-limit .progress-track > span,
+.mobile-selection.over-limit {
+  background: #a12f30;
 }
 .selection-empty {
   text-align: center;

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { identity } from "@/lib/auth";
 import { UserNav } from "@/components/user-nav";
+import { googleAvatar } from "@/lib/avatar";
 import "./globals.css";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -54,7 +55,11 @@ export default async function RootLayout({
               <small>ANIME MAD FESTIVAL</small>
             </span>
           </Link>
-          <UserNav name={name} admin={admin} />
+          <UserNav
+            name={name}
+            admin={admin}
+            avatarUrl={auth ? googleAvatar(auth.user) : null}
+          />
         </header>
         {children}
         <footer className="site-footer">

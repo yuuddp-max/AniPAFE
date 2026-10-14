@@ -51,7 +51,9 @@ export function VoteShell({ children }: { children: React.ReactNode }) {
       )}
       <nav className="award-tabs" aria-label="投票部門">
         {data.awards.map((a) => {
-          const n = entries.filter((e) => e.award_code === a.code).length;
+          const n = entries.filter((e) => e.award_code === a.code).length,
+            overLimit = n > a.max_votes,
+            ready = n >= a.min_votes && !overLimit;
           return (
             <Link
               href={`/vote/${a.code}`}
@@ -60,14 +62,18 @@ export function VoteShell({ children }: { children: React.ReactNode }) {
             >
               <span>{a.name}</span>
               <small
-                className={`award-count${n >= a.min_votes ? " complete" : ""}`}
+                className={`award-count${overLimit ? " over-limit" : ready ? " complete" : ""}`}
+                aria-live="polite"
+                aria-atomic="true"
                 title={
-                  n >= a.min_votes
-                    ? "必要票数を満たしています"
-                    : `あと${a.min_votes - n}作品で必要票数を満たします`
+                  overLimit
+                    ? `上限を${n - a.max_votes}作品超えています。確定前に選択を解除してください`
+                    : ready
+                      ? "必要票数を満たしています"
+                      : `あと${a.min_votes - n}作品で必要票数を満たします`
                 }
               >
-                {n >= a.min_votes ? "✓ " : ""}
+                {overLimit ? "! " : ready ? "✓ " : ""}
                 {n}/{a.max_votes}
               </small>
             </Link>

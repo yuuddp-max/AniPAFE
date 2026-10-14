@@ -14,7 +14,14 @@ function user(uid: string) {
     role: "authenticated",
     email: `test-${uid.slice(-1)}@example.invalid`,
     app_metadata: { provider: "google", providers: ["google"] },
-    user_metadata: { full_name: "Google表示名" },
+    user_metadata: {
+      full_name: "Google表示名",
+      ...(uid === U1
+        ? {
+            avatar_url: "https://lh3.googleusercontent.com/anipafe-test-avatar",
+          }
+        : {}),
+    },
     identities: [
       {
         id: uid,

@@ -130,7 +130,7 @@ export function VoteReview({ complete = false }: { complete?: boolean }) {
           </button>
           {!ready && (
             <p className="error">
-              6部門すべてで必要な作品数を選択してください。
+              6部門すべてで、表示された下限～上限の作品数に調整してください。
             </p>
           )}
         </div>

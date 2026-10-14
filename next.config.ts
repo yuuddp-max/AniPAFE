@@ -10,7 +10,7 @@ const config: NextConfig = {
       "script-src 'self' 'unsafe-inline'" +
         (process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""),
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: https://*.nimg.jp https://*.nicovideo.jp",
+      "img-src 'self' data: https://*.nimg.jp https://*.nicovideo.jp https://googleusercontent.com https://*.googleusercontent.com",
       `connect-src 'self' ${host}` +
         (process.env.NODE_ENV === "development"
           ? " ws: http://localhost:* http://127.0.0.1:*"

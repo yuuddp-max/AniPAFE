@@ -7,6 +7,9 @@ import {
 import { mkdir } from "node:fs/promises";
 import { fixtureCsv } from "../fixtures";
 const appOrigin = process.env.ANIPAFE_TEST_ORIGIN ?? "http://localhost:3000";
+const googleAvatarUrl = "https://lh3.googleusercontent.com/anipafe-test-avatar";
+const avatarSvg =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="#4285f4"/><circle cx="32" cy="22" r="12" fill="#fbbc05"/><path d="M10 64v-8a22 22 0 0144 0v8" fill="#ffffff"/></svg>';
 async function login(
   context: BrowserContext,
   request: APIRequestContext,
@@ -26,8 +29,11 @@ async function login(
     },
   ]);
 }
-test.beforeEach(async ({ request }) => {
+test.beforeEach(async ({ request, page }) => {
   await request.post("http://127.0.0.1:54329/__test/reset");
+  await page.route(googleAvatarUrl, (route) =>
+    route.fulfill({ contentType: "image/svg+xml", body: avatarSvg }),
+  );
 });
 test("共通ヘッダーのログイン表示・プロフィール保存後の更新・投票リンク・ログアウト", async ({
   page,
@@ -60,7 +66,7 @@ test("共通ヘッダーのログイン表示・プロフィール保存後の�
   ).toBeVisible();
   await account.getByRole("link", { name: "投票画面へ", exact: true }).click();
   await expect(page).toHaveURL(/\/vote\/overall$/);
-  await expect(page.locator(".video-card")).toHaveCount(32);
+  await expect(page.locator(".video-card")).toHaveCount(12);
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(
     account.getByText("ヘッダー表示テスト", { exact: true }),
@@ -95,6 +101,54 @@ test("共通ヘッダーのログイン表示・プロフィール保存後の�
     ),
   ).toBe(true);
 });
+test("Googleプロフィール画像・PCとスマホの丸形表示・読込失敗と画像なしの頭文字表示", async ({
+  page,
+  context,
+  request,
+}) => {
+  await login(context, request);
+  await page.goto("/profile");
+  const avatar = page.locator(".account-avatar"),
+    image = avatar.locator("img");
+  await expect(image).toHaveAttribute("src", googleAvatarUrl);
+  await expect
+    .poll(() =>
+      image.evaluate(
+        (element: HTMLImageElement) =>
+          element.complete && element.naturalWidth > 0,
+      ),
+    )
+    .toBe(true);
+  await expect(avatar).toHaveCSS("border-radius", "50%");
+  await expect(avatar).toHaveCSS("overflow", "hidden");
+  await expect(avatar).toHaveCSS("width", "32px");
+  await expect(image).toHaveCSS("object-fit", "cover");
+  await mkdir("artifacts", { recursive: true });
+  await page.screenshot({ path: "artifacts/google-avatar-desktop.png" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(avatar).toHaveCSS("width", "28px");
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({ path: "artifacts/google-avatar-mobile.png" });
+  await page.getByRole("button", { name: /ユーザーメニュー/ }).click();
+  await expect(
+    page.getByRole("link", { name: "マイプロフィール" }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.unroute(googleAvatarUrl);
+  await page.route(googleAvatarUrl, (route) => route.abort("failed"));
+  await page.reload();
+  await expect(image).toHaveCount(0);
+  await expect(avatar).toHaveText("G");
+  await login(context, request, "other");
+  await page.reload();
+  await expect(image).toHaveCount(0);
+  await expect(avatar).toHaveText("G");
+});
+
 test("Google PKCE開始・スコープ・callback送信先", async ({ request }) => {
   const response = await request.post("/auth/login", {
     headers: { Origin: appOrigin },
@@ -111,7 +165,7 @@ test("Google PKCE開始・スコープ・callback送信先", async ({ request })
   expect(url.searchParams.get("code_challenge")).toBeTruthy();
   expect(response.headers()["set-cookie"]).toContain("code-verifier");
 });
-test("3列・ID非表示・左右ページ切替・スワイプと選択感想の保持", async ({
+test("12作品・3列4行・ID非表示・左右ページ切替・スワイプと選択感想の保持", async ({
   page,
   context,
   request,
@@ -131,7 +185,7 @@ test("3列・ID非表示・左右ページ切替・スワイプと選択感想�
     name: "前の作品ページ",
     exact: true,
   });
-  await expect(page.locator(".video-card")).toHaveCount(32);
+  await expect(page.locator(".video-card")).toHaveCount(12);
   expect(
     await page
       .locator(".video-grid")
@@ -162,22 +216,23 @@ test("3列・ID非表示・左右ページ切替・スワイプと選択感想�
   expect(arrow!.y).toBeGreaterThan(0);
   expect(arrow!.y).toBeLessThan(1000);
   await next.click();
-  await expect(summary).toContainText("作品ページ 2 / 4");
+  await expect(summary).toContainText("作品ページ 2 / 9");
   expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(800);
   await expect(page.locator(".video-card h3").first()).not.toHaveText(
     firstTitle,
   );
   await expect(comment).toHaveValue("ページを移動しても保存される感想");
-  await next.click();
-  await next.click();
-  await expect(summary).toContainText("作品ページ 4 / 4");
+  for (let pageNumber = 3; pageNumber <= 9; pageNumber++) {
+    await next.click();
+    await expect(summary).toContainText(`作品ページ ${pageNumber} / 9`);
+  }
   await expect(page.locator(".video-card")).toHaveCount(11);
   await expect(next).toBeDisabled();
   await previous.click();
-  await expect(summary).toContainText("作品ページ 3 / 4");
+  await expect(summary).toContainText("作品ページ 8 / 9");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
-  await expect(summary).toContainText("作品ページ 1 / 4");
+  await expect(summary).toContainText("作品ページ 1 / 9");
   const cdp = await context.newCDPSession(page);
   async function swipe(direction: "left" | "right" | "vertical") {
     const media = page.locator(".card-media").first();
@@ -207,11 +262,11 @@ test("3列・ID非表示・左右ページ切替・スワイプと選択感想�
     });
   }
   await swipe("left");
-  await expect(summary).toContainText("作品ページ 2 / 4");
+  await expect(summary).toContainText("作品ページ 2 / 9");
   await swipe("vertical");
-  await expect(summary).toContainText("作品ページ 2 / 4");
+  await expect(summary).toContainText("作品ページ 2 / 9");
   await swipe("right");
-  await expect(summary).toContainText("作品ページ 1 / 4");
+  await expect(summary).toContainText("作品ページ 1 / 9");
   await expect(comment).toHaveValue("ページを移動しても保存される感想");
   expect(
     await page.evaluate(
@@ -231,6 +286,122 @@ test("3列・ID非表示・左右ページ切替・スワイプと選択感想�
   ).toHaveAttribute("aria-expanded", "false");
   await page.screenshot({ path: "artifacts/catalog-slider-desktop.png" });
 });
+test("上限超過を赤表示・27件の下書き保存と復元・超過中の確定拒否・解除後の確定", async ({
+  page,
+  context,
+  request,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await login(context, request);
+  await page.goto("/profile");
+  await page.getByLabel("ニコニコユーザーID", { exact: false }).fill("350396");
+  await page.getByRole("button", { name: "プロフィールを保存" }).click();
+  await page.getByRole("link", { name: "投票へ進む" }).click();
+  for (const [code, name, count] of [
+    ["overall", "総合賞", 11],
+    ["music", "選曲賞", 4],
+    ["composition", "構成賞", 3],
+    ["creative", "クリエイティブ賞", 3],
+    ["humor", "諧謔賞", 3],
+    ["theme", "テーマ賞", 3],
+  ] as const) {
+    await page.locator(`.award-tabs a[href='/vote/${code}']`).click();
+    await expect(
+      page.getByRole("heading", { name: new RegExp(`^${name}`) }),
+    ).toBeVisible();
+    for (let i = 0; i < count; i++)
+      await page
+        .getByRole("button", { name: "＋ 選ぶ", exact: true })
+        .first()
+        .click();
+    await expect(
+      page.getByText("✓ 下書きを保存済み", { exact: true }),
+    ).toBeVisible();
+  }
+  const overall = page.locator(
+      ".award-tabs a[href='/vote/overall'] .award-count",
+    ),
+    music = page.locator(".award-tabs a[href='/vote/music'] .award-count");
+  await expect(overall).toHaveText("! 11/10");
+  await expect(music).toHaveText("! 4/3");
+  await expect(overall).toHaveCSS("background-color", "rgb(161, 47, 48)");
+  await expect(page.locator(".award-count.over-limit")).toHaveCount(2);
+  await page.locator(".award-tabs a[href='/vote/overall']").click();
+  await expect(page.getByRole("heading", { name: /^総合賞/ })).toBeVisible();
+  const comment = page
+    .getByPlaceholder("心に残ったところを、ひとこと。")
+    .first();
+  await comment.fill("上限超過中の感想も保存");
+  await expect(
+    page.getByText("✓ 下書きを保存済み", { exact: true }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(page.locator(".selected-item")).toHaveCount(11);
+  await expect(comment).toHaveValue("上限超過中の感想も保存");
+  await expect(overall).toHaveText("! 11/10");
+  await expect(music).toHaveText("! 4/3");
+  await expect(page.locator(".selected-heading strong")).toHaveCSS(
+    "color",
+    "rgb(161, 47, 48)",
+  );
+  await expect(page.locator(".progress-track > span")).toHaveCSS(
+    "background-color",
+    "rgb(161, 47, 48)",
+  );
+  expect(
+    await page
+      .locator(".progress-track > span")
+      .evaluate(
+        (element) =>
+          element.getBoundingClientRect().width <=
+          element.parentElement!.getBoundingClientRect().width,
+      ),
+  ).toBe(true);
+  await expect(
+    page.getByRole("button", { name: "最終確認へ →", exact: true }),
+  ).toBeDisabled();
+  await mkdir("artifacts", { recursive: true });
+  await page.screenshot({ path: "artifacts/vote-over-limit-desktop.png" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator(".mobile-selection")).toHaveCSS(
+    "background-color",
+    "rgb(161, 47, 48)",
+  );
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({ path: "artifacts/vote-over-limit-mobile.png" });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/vote/review");
+  await expect(page.locator(".review-award article")).toHaveCount(27);
+  await expect(
+    page.getByRole("button", { name: "この内容で投票を確定する" }),
+  ).toBeDisabled();
+  await page.locator(".award-tabs a[href='/vote/overall']").click();
+  await expect(page.getByRole("heading", { name: /^総合賞/ })).toBeVisible();
+  await page.locator(".selected-item > div > button").nth(10).click();
+  await expect(overall).toHaveText("✓ 10/10");
+  await expect(overall).toHaveCSS("background-color", "rgb(53, 99, 73)");
+  await expect(music).toHaveText("! 4/3");
+  await expect(
+    page.getByRole("button", { name: "最終確認へ →", exact: true }),
+  ).toBeDisabled();
+  await page.locator(".award-tabs a[href='/vote/music']").click();
+  await expect(page.getByRole("heading", { name: /^選曲賞/ })).toBeVisible();
+  await page.locator(".selected-item > div > button").nth(3).click();
+  await expect(music).toHaveText("✓ 3/3");
+  await expect(page.locator(".award-count.over-limit")).toHaveCount(0);
+  await expect(
+    page.getByText("✓ 下書きを保存済み", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "最終確認へ →", exact: true }).click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "この内容で投票を確定する" }).click();
+  await expect(page).toHaveURL(/complete/);
+});
+
 test("管理者の再取込プレビュー・確認トークン・受付OFF・プロフィール移動前の保存", async ({
   page,
   context,
@@ -353,7 +524,7 @@ test("プロフィール→6部門→感想自動保存→再読み込み復元�
   await page.getByRole("button", { name: "プロフィールを保存" }).click();
   await expect(page.getByText("プロフィールを保存しました。")).toBeVisible();
   await page.getByRole("link", { name: "投票へ進む" }).click();
-  await expect(page.locator(".video-card")).toHaveCount(32);
+  await expect(page.locator(".video-card")).toHaveCount(12);
   await expect(page.locator("iframe")).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "自分の作品（投票不可）" }).first(),
@@ -475,8 +646,8 @@ test("スマホ・保存失敗→再試行・上限・検索維持・テーマ�
     page.locator(".award-tabs a[href='/vote/overall'] .award-count.complete"),
   ).toHaveText("✓ 10/10");
   await expect(
-    page.getByRole("button", { name: "上限に達しました" }).first(),
-  ).toBeDisabled();
+    page.getByRole("button", { name: "＋ 選ぶ", exact: true }).first(),
+  ).toBeEnabled();
   await expect(
     page.getByText("✓ 下書きを保存済み", { exact: true }),
   ).toBeVisible();
@@ -492,7 +663,7 @@ test("スマホ・保存失敗→再試行・上限・検索維持・テーマ�
   await page.getByRole("textbox", { name: "作品を検索" }).fill("");
   await page.getByRole("link", { name: /テーマ賞/ }).click();
   await expect(page.getByText("テーマ記入済み 55作品")).toBeVisible();
-  await expect(page.locator(".theme-tag")).toHaveCount(32);
+  await expect(page.locator(".theme-tag")).toHaveCount(12);
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,

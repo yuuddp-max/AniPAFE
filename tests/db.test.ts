@@ -37,6 +37,82 @@ test("最大25票の確定と同時保存・二重確定の整合", async () => 
   assert.equal(result.rows[0].n, 25);
   await db.close();
 });
+test("上限超過の27件を下書き保存し、総合11票・選曲4票の確定を拒否して修正後に確定", async () => {
+  const { db, videos } = await database();
+  try {
+    await call(db, U1, "select public.save_profile($1,$2)", [
+      "候補選択テスト",
+      "999999990",
+    ]);
+    const draft = [
+      "overall",
+      "music",
+      "composition",
+      "creative",
+      "humor",
+      "theme",
+    ].flatMap((award) =>
+      (award === "theme" ? videos.filter((v) => v.theme) : videos)
+        .slice(0, award === "overall" ? 11 : award === "music" ? 4 : 3)
+        .map((v) => ({
+          award_code: award,
+          video_id: v.video_id,
+          comment: "残したい感想",
+        })),
+    );
+    assert.equal(draft.length, 27);
+    await call(db, U1, "select public.save_draft($1,1)", [
+      JSON.stringify(draft),
+    ]);
+    const restored = await call(db, U1, "select * from public.ballot_entries");
+    assert.equal(restored.rows.length, 27);
+    assert.ok(
+      restored.rows.every(
+        (row) => (row as { comment: string }).comment === "残したい感想",
+      ),
+    );
+    await assert.rejects(
+      call(db, U1, "select public.submit_ballot(2)"),
+      /総合賞/,
+    );
+    assert.equal(
+      (
+        (await call(db, U1, "select status from public.ballots")).rows[0] as {
+          status: string;
+        }
+      ).status,
+      "draft",
+    );
+    const correctedOverall = draft.filter((entry) => entry !== draft[10]);
+    await call(db, U1, "select public.save_draft($1,2)", [
+      JSON.stringify(correctedOverall),
+    ]);
+    await assert.rejects(
+      call(db, U1, "select public.submit_ballot(3)"),
+      /選曲賞/,
+    );
+    const corrected = correctedOverall.filter((entry) => entry !== draft[14]);
+    await call(db, U1, "select public.save_draft($1,3)", [
+      JSON.stringify(corrected),
+    ]);
+    await call(db, U1, "select public.submit_ballot(4)");
+    assert.equal(
+      (
+        (await call(db, U1, "select status from public.ballots")).rows[0] as {
+          status: string;
+        }
+      ).status,
+      "submitted",
+    );
+    assert.equal(
+      (await call(db, U1, "select * from public.ballot_entries")).rows.length,
+      25,
+    );
+  } finally {
+    await db.close();
+  }
+});
+
 test("実PostgreSQL: migration、DB強制検証、RLS、確定票集計・管理操作", async (t) => {
   const { db, videos } = await database();
   async function rpc(uid: string, fn: string, args: unknown[] = []) {
@@ -178,33 +254,36 @@ test("実PostgreSQL: migration、DB強制検証、RLS、確定票集計・管理
     },
   );
   await t.test(
-    "総合4/11、その他0/4拒否、6部門必須、別部門同一作品可、最大25件可",
+    "総合4/11、その他0/4の確定拒否、6部門必須、別部門同一作品可、最大25件可",
     async () => {
       await save(entries.filter((_, i) => i !== 0));
       await assert.rejects(
         rpc(U1, "submit_ballot", [await revision()]),
         /総合賞/,
       );
+      await save([
+        ...videos
+          .filter((v) => v.author_nico_user_id !== "350396")
+          .slice(0, 11)
+          .map((v) => ({ ...entries[0], video_id: v.video_id })),
+      ]);
       await assert.rejects(
-        save([
-          ...videos
-            .filter((v) => v.author_nico_user_id !== "350396")
-            .slice(0, 11)
-            .map((v) => ({ ...entries[0], video_id: v.video_id })),
-        ]),
+        rpc(U1, "submit_ballot", [await revision()]),
         /総合賞/,
       );
+      await save([
+        ...entries.filter((e) => e.award_code !== "music"),
+        ...videos
+          .filter((v) => v.author_nico_user_id !== "350396")
+          .slice(0, 4)
+          .map((v) => ({
+            ...entries[0],
+            award_code: "music",
+            video_id: v.video_id,
+          })),
+      ]);
       await assert.rejects(
-        save(
-          videos
-            .filter((v) => v.author_nico_user_id !== "350396")
-            .slice(0, 4)
-            .map((v) => ({
-              ...entries[0],
-              award_code: "music",
-              video_id: v.video_id,
-            })),
-        ),
+        rpc(U1, "submit_ballot", [await revision()]),
         /選曲賞/,
       );
       await save(entries.filter((e) => e.award_code !== "music"));

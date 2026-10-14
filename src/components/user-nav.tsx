@@ -5,12 +5,15 @@ import { useEffect, useId, useRef, useState } from "react";
 export function UserNav({
   name,
   admin = false,
+  avatarUrl = null,
 }: {
   name: string | null;
   admin?: boolean;
+  avatarUrl?: string | null;
 }) {
   const path = usePathname();
   const [open, setOpen] = useState(false);
+  const [failedAvatar, setFailedAvatar] = useState<string | null>(null);
   const menuId = useId();
   const account = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -63,7 +66,23 @@ export function UserNav({
             onClick={() => setOpen((value) => !value)}
           >
             <span className="account-avatar" aria-hidden="true">
-              {Array.from(name)[0]?.toLocaleUpperCase()}
+              {avatarUrl && avatarUrl !== failedAvatar ? (
+                <img
+                  src={avatarUrl}
+                  alt=""
+                  width={32}
+                  height={32}
+                  referrerPolicy="no-referrer"
+                  ref={(image) => {
+                    // Catch failures that occur before the server-rendered image hydrates.
+                    if (image?.complete && image.naturalWidth === 0)
+                      setFailedAvatar(avatarUrl);
+                  }}
+                  onError={() => setFailedAvatar(avatarUrl)}
+                />
+              ) : (
+                Array.from(name)[0]?.toLocaleUpperCase()
+              )}
             </span>
             <span className="user-identity">
               <span className="login-state">ログイン中</span>

@@ -21,15 +21,13 @@ export const awardCodeSchema = z.enum([
   "humor",
   "theme",
 ]);
-export const entriesSchema = z
-  .array(
-    z.object({
-      award_code: awardCodeSchema,
-      video_id: z.string().regex(/^(sm|so|nm)[0-9]+$/),
-      comment: z.string().max(1000),
-    }),
-  )
-  .max(25);
+export const entriesSchema = z.array(
+  z.object({
+    award_code: awardCodeSchema,
+    video_id: z.string().regex(/^(sm|so|nm)[0-9]+$/),
+    comment: z.string().max(1000),
+  }),
+);
 export function pollIsOpen(
   poll: {
     is_published: boolean;

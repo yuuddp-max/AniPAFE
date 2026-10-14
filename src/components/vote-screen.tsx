@@ -6,7 +6,7 @@ import { Player } from "./player";
 import { VideoImage } from "./video-image";
 import { pollIsOpen } from "@/lib/validation";
 import type { AwardCode, Video } from "@/lib/types";
-const PAGE_SIZE = 32;
+const PAGE_SIZE = 12;
 export function VoteScreen({ code }: { code: AwardCode }) {
   const { data, entries, change, submitted, state } = useVotes(),
     award = data.awards.find((a) => a.code === code)!;
@@ -32,6 +32,7 @@ export function VoteScreen({ code }: { code: AwardCode }) {
   }, []);
   const selected = entries.filter((e) => e.award_code === code),
     selectedIds = new Set(selected.map((e) => e.video_id)),
+    overLimit = selected.length > award.max_votes,
     open = pollIsOpen(data.poll, now),
     disabled = submitted || !open;
   const videoMap = useMemo(
@@ -79,18 +80,22 @@ export function VoteScreen({ code }: { code: AwardCode }) {
           (e) => !(e.award_code === code && e.video_id === v.video_id),
         ),
       );
-    else if (
-      selected.length < award.max_votes &&
-      v.author_nico_user_id !== data.profile.nico_user_id
-    )
+    else if (v.author_nico_user_id !== data.profile.nico_user_id)
       change([
         ...entries,
         { award_code: code, video_id: v.video_id, comment: "" },
       ]);
   }
-  const allReady = data.awards.every(
-    (a) => entries.filter((e) => e.award_code === a.code).length >= a.min_votes,
-  );
+  const anyOverLimit = data.awards.some(
+      (a) =>
+        entries.filter((e) => e.award_code === a.code).length > a.max_votes,
+    ),
+    allReady =
+      !anyOverLimit &&
+      data.awards.every(
+        (a) =>
+          entries.filter((e) => e.award_code === a.code).length >= a.min_votes,
+      );
   return (
     <main id="main" className="vote-main">
       {!open && !submitted && (
@@ -220,8 +225,7 @@ export function VoteScreen({ code }: { code: AwardCode }) {
                   .map((v) => {
                     const own =
                         v.author_nico_user_id === data.profile.nico_user_id,
-                      chosen = selectedIds.has(v.video_id),
-                      full = !chosen && selected.length >= award.max_votes;
+                      chosen = selectedIds.has(v.video_id);
                     return (
                       <article
                         className={`video-card ${chosen ? "chosen" : ""} ${own ? "own" : ""}`}
@@ -265,7 +269,7 @@ export function VoteScreen({ code }: { code: AwardCode }) {
                             </a>
                             <button
                               aria-pressed={chosen}
-                              disabled={disabled || own || full}
+                              disabled={disabled || own}
                               className={`select-button ${chosen ? "selected" : ""}`}
                               onClick={() => toggle(v)}
                             >
@@ -273,9 +277,7 @@ export function VoteScreen({ code }: { code: AwardCode }) {
                                 ? "自分の作品（投票不可）"
                                 : chosen
                                   ? "✓ 選択中"
-                                  : full
-                                    ? "上限に達しました"
-                                    : "＋ 選ぶ"}
+                                  : "＋ 選ぶ"}
                             </button>
                           </div>
                         </div>
@@ -291,7 +293,10 @@ export function VoteScreen({ code }: { code: AwardCode }) {
             </div>
           </div>
         </section>
-        <aside id="selected" className="selected-pane">
+        <aside
+          id="selected"
+          className={`selected-pane${overLimit ? " over-limit" : ""}`}
+        >
           <div className="selected-heading">
             <span>選択中の作品</span>
             <strong>
@@ -301,15 +306,19 @@ export function VoteScreen({ code }: { code: AwardCode }) {
           </div>
           <div className="progress-track">
             <span
-              style={{ width: `${(selected.length / award.max_votes) * 100}%` }}
+              style={{
+                width: `${Math.min(100, (selected.length / award.max_votes) * 100)}%`,
+              }}
             />
           </div>
-          <p className="selection-guide">
+          <p className="selection-guide" role="status">
             {selected.length < award.min_votes
               ? `あと${award.min_votes - selected.length}作品で必要数を満たします。`
-              : selected.length >= award.max_votes
-                ? "上限に達しました。追加するには選択を解除してください。"
-                : "必要数を満たしました。さらに選ぶこともできます。"}
+              : overLimit
+                ? `上限を${selected.length - award.max_votes}作品超えています。確定前に${selected.length - award.max_votes}作品の選択を解除してください。`
+                : selected.length === award.max_votes
+                  ? "上限の作品数を選択中です。さらに選び、確定前に絞り込むこともできます。"
+                  : "必要数を満たしました。さらに選ぶこともできます。"}
           </p>
           {!selected.length && (
             <div className="selection-empty">
@@ -396,16 +405,21 @@ export function VoteScreen({ code }: { code: AwardCode }) {
               </button>
             )}
             <small>
-              {!allReady
-                ? "6部門すべての必要数を満たすと進めます。"
-                : state !== "saved"
-                  ? "下書きの保存完了をお待ちください。"
-                  : "確定する前に、投票内容を確認できます。"}
+              {anyOverLimit
+                ? "上限を超えている部門の選択を解除すると進めます。"
+                : !allReady
+                  ? "6部門すべての必要数を満たすと進めます。"
+                  : state !== "saved"
+                    ? "下書きの保存完了をお待ちください。"
+                    : "確定する前に、投票内容を確認できます。"}
             </small>
           </div>
         </aside>
       </div>
-      <a href="#selected" className="mobile-selection">
+      <a
+        href="#selected"
+        className={`mobile-selection${overLimit ? " over-limit" : ""}`}
+      >
         {award.name}　{selected.length}/{award.max_votes}作品{" "}
         <span>選択一覧へ ↑</span>
       </a>
