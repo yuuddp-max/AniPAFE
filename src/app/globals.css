@@ -927,6 +927,10 @@ img {
   border: 2px solid var(--green);
   box-shadow: 0 0 0 2px #e1eadc;
 }
+.video-grid.over-limit .video-card.chosen {
+  border-color: #a12f30;
+  box-shadow: 0 0 0 2px #f3dedc;
+}
 .card-media {
   position: relative;
 }

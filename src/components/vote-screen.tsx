@@ -218,7 +218,7 @@ export function VoteScreen({ code }: { code: AwardCode }) {
             >
               <div
                 key={`${actualPage}-${query}-${filter}-${sort}`}
-                className={`video-grid slide-${slideDirection}`}
+                className={`video-grid slide-${slideDirection}${overLimit ? " over-limit" : ""}`}
               >
                 {videos
                   .slice((actualPage - 1) * PAGE_SIZE, actualPage * PAGE_SIZE)

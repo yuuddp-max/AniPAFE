@@ -344,6 +344,14 @@ test("上限超過を赤表示・27件の下書き保存と復元・超過中の
     "color",
     "rgb(161, 47, 48)",
   );
+  await expect(page.locator(".video-card.chosen").first()).toHaveCSS(
+    "border-color",
+    "rgb(161, 47, 48)",
+  );
+  await expect(page.locator(".video-card:not(.chosen)").first()).toHaveCSS(
+    "border-color",
+    "rgb(222, 223, 213)",
+  );
   await expect(page.locator(".progress-track > span")).toHaveCSS(
     "background-color",
     "rgb(161, 47, 48)",
@@ -367,6 +375,10 @@ test("上限超過を赤表示・27件の下書き保存と復元・超過中の
     "background-color",
     "rgb(161, 47, 48)",
   );
+  await expect(page.locator(".video-card.chosen").first()).toHaveCSS(
+    "border-color",
+    "rgb(161, 47, 48)",
+  );
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
@@ -384,14 +396,26 @@ test("上限超過を赤表示・27件の下書き保存と復元・超過中の
   await page.locator(".selected-item > div > button").nth(10).click();
   await expect(overall).toHaveText("✓ 10/10");
   await expect(overall).toHaveCSS("background-color", "rgb(53, 99, 73)");
+  await expect(page.locator(".video-card.chosen").first()).toHaveCSS(
+    "border-color",
+    "rgb(53, 99, 73)",
+  );
   await expect(music).toHaveText("! 4/3");
   await expect(
     page.getByRole("button", { name: "最終確認へ →", exact: true }),
   ).toBeDisabled();
   await page.locator(".award-tabs a[href='/vote/music']").click();
   await expect(page.getByRole("heading", { name: /^選曲賞/ })).toBeVisible();
+  await expect(page.locator(".video-card.chosen").first()).toHaveCSS(
+    "border-color",
+    "rgb(161, 47, 48)",
+  );
   await page.locator(".selected-item > div > button").nth(3).click();
   await expect(music).toHaveText("✓ 3/3");
+  await expect(page.locator(".video-card.chosen").first()).toHaveCSS(
+    "border-color",
+    "rgb(53, 99, 73)",
+  );
   await expect(page.locator(".award-count.over-limit")).toHaveCount(0);
   await expect(
     page.getByText("✓ 下書きを保存済み", { exact: true }),
