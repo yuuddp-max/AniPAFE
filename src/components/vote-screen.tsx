@@ -72,14 +72,24 @@ export function VoteScreen({ code }: { code: AwardCode }) {
     setSlideDirection(next > actualPage ? "next" : "previous");
     setPage(next);
   }
+  function removeSelection(videoId: string) {
+    if (disabled) return;
+    const entry = selected.find((e) => e.video_id === videoId);
+    if (!entry) return;
+    if (
+      entry.comment.length > 0 &&
+      !window.confirm(
+        `「${videoMap.get(videoId)?.title ?? videoId}」の選択を解除すると、入力済みの感想も削除されます。選択を解除しますか？`,
+      )
+    )
+      return;
+    change(
+      entries.filter((e) => !(e.award_code === code && e.video_id === videoId)),
+    );
+  }
   function toggle(v: Video) {
     if (disabled) return;
-    if (selectedIds.has(v.video_id))
-      change(
-        entries.filter(
-          (e) => !(e.award_code === code && e.video_id === v.video_id),
-        ),
-      );
+    if (selectedIds.has(v.video_id)) removeSelection(v.video_id);
     else if (v.author_nico_user_id !== data.profile.nico_user_id)
       change([
         ...entries,
@@ -340,16 +350,7 @@ export function VoteScreen({ code }: { code: AwardCode }) {
                   <button
                     aria-label={`${v?.title ?? e.video_id}の選択を解除`}
                     disabled={disabled}
-                    onClick={() =>
-                      change(
-                        entries.filter(
-                          (x) =>
-                            !(
-                              x.award_code === code && x.video_id === e.video_id
-                            ),
-                        ),
-                      )
-                    }
+                    onClick={() => removeSelection(e.video_id)}
                   >
                     ×
                   </button>
@@ -384,7 +385,10 @@ export function VoteScreen({ code }: { code: AwardCode }) {
             <button
               className="text-button clear-button"
               onClick={() => {
-                if (window.confirm(`${award.name}の選択をすべて解除しますか？`))
+                const warning = selected.some((e) => e.comment.length > 0)
+                  ? `${award.name}の選択をすべて解除すると、入力済みの感想もすべて削除されます。選択をすべて解除しますか？`
+                  : `${award.name}の選択をすべて解除しますか？`;
+                if (window.confirm(warning))
                   change(entries.filter((e) => e.award_code !== code));
               }}
             >

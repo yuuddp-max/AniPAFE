@@ -286,6 +286,82 @@ test("12作品・3列4行・ID非表示・左右ページ切替・スワイプ�
   ).toHaveAttribute("aria-expanded", "false");
   await page.screenshot({ path: "artifacts/catalog-slider-desktop.png" });
 });
+test("感想付きの選択解除は警告・キャンセルで保存内容保持・カードと一覧と一括解除", async ({
+  page,
+  context,
+  request,
+}) => {
+  await login(context, request);
+  await page.goto("/profile");
+  await page.getByLabel("ニコニコユーザーID", { exact: false }).fill("350396");
+  await page.getByRole("button", { name: "プロフィールを保存" }).click();
+  await page.getByRole("link", { name: "投票へ進む" }).click();
+  const selected = page.locator(".selected-item"),
+    add = page.getByRole("button", { name: "＋ 選ぶ", exact: true }).first(),
+    chosen = page.locator(".video-card.chosen .select-button").first(),
+    remove = page.locator(".selected-item > div > button").first(),
+    comment = page.getByPlaceholder("心に残ったところを、ひとこと。").first(),
+    saved = page.getByText("✓ 下書きを保存済み", { exact: true });
+  async function confirmRemoval(action: () => Promise<void>, accept: boolean) {
+    const dialogPromise = page.waitForEvent("dialog", { timeout: 5000 });
+    const clicking = action();
+    const dialog = await dialogPromise;
+    expect(dialog.type()).toBe("confirm");
+    expect(dialog.message()).toContain("入力済みの感想も");
+    expect(dialog.message()).toContain("削除されます");
+    if (accept) await dialog.accept();
+    else await dialog.dismiss();
+    await clicking;
+  }
+  // Empty comments can be removed directly from either entry point.
+  await add.click();
+  await chosen.click();
+  await expect(selected).toHaveCount(0);
+  await add.click();
+  await remove.click();
+  await expect(selected).toHaveCount(0);
+  await add.click();
+  await comment.fill("消したくない感想");
+  await expect(saved).toBeVisible();
+  await confirmRemoval(() => chosen.click(), false);
+  await expect(selected).toHaveCount(1);
+  await expect(comment).toHaveValue("消したくない感想");
+  await confirmRemoval(() => remove.click(), false);
+  await page.reload();
+  await expect(selected).toHaveCount(1);
+  await expect(comment).toHaveValue("消したくない感想");
+  await confirmRemoval(() => remove.click(), true);
+  await expect(selected).toHaveCount(0);
+  await expect(saved).toBeVisible();
+  await page.reload();
+  await expect(selected).toHaveCount(0);
+  await add.click();
+  await comment.fill("カードから解除する感想");
+  await expect(saved).toBeVisible();
+  await confirmRemoval(() => chosen.click(), true);
+  await expect(selected).toHaveCount(0);
+  await expect(saved).toBeVisible();
+  // A bulk removal warns when at least one selected work has a comment.
+  await add.click();
+  await comment.fill("一括解除でも警告する感想");
+  await add.click();
+  await expect(selected).toHaveCount(2);
+  await expect(saved).toBeVisible();
+  const clear = page.getByRole("button", {
+    name: "この部門の選択をすべて解除",
+    exact: true,
+  });
+  await confirmRemoval(() => clear.click(), false);
+  await page.reload();
+  await expect(selected).toHaveCount(2);
+  await expect(comment).toHaveValue("一括解除でも警告する感想");
+  await confirmRemoval(() => clear.click(), true);
+  await expect(selected).toHaveCount(0);
+  await expect(saved).toBeVisible();
+  await page.reload();
+  await expect(selected).toHaveCount(0);
+});
+
 test("上限超過を赤表示・27件の下書き保存と復元・超過中の確定拒否・解除後の確定", async ({
   page,
   context,
