@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { useVotes } from "./vote-provider";
 import { Player } from "./player";
 import { VideoImage } from "./video-image";
@@ -8,7 +7,7 @@ import { pollIsOpen } from "@/lib/validation";
 import type { AwardCode, Video } from "@/lib/types";
 const PAGE_SIZE = 12;
 export function VoteScreen({ code }: { code: AwardCode }) {
-  const { data, entries, change, submitted, state } = useVotes(),
+  const { data, entries, change, submitted } = useVotes(),
     award = data.awards.find((a) => a.code === code)!;
   const [search, setSearch] = useState(""),
     [query, setQuery] = useState(""),
@@ -96,16 +95,6 @@ export function VoteScreen({ code }: { code: AwardCode }) {
         { award_code: code, video_id: v.video_id, comment: "" },
       ]);
   }
-  const anyOverLimit = data.awards.some(
-      (a) =>
-        entries.filter((e) => e.award_code === a.code).length > a.max_votes,
-    ),
-    allReady =
-      !anyOverLimit &&
-      data.awards.every(
-        (a) =>
-          entries.filter((e) => e.award_code === a.code).length >= a.min_votes,
-      );
   return (
     <main id="main" className="vote-main">
       {!open && !submitted && (
@@ -395,29 +384,6 @@ export function VoteScreen({ code }: { code: AwardCode }) {
               この部門の選択をすべて解除
             </button>
           )}
-          <div className="review-action">
-            {allReady && state === "saved" ? (
-              <Link
-                className="button"
-                href={submitted ? "/vote/complete" : "/vote/review"}
-              >
-                {submitted ? "投票結果を確認" : "最終確認へ"} →
-              </Link>
-            ) : (
-              <button className="button" disabled>
-                最終確認へ →
-              </button>
-            )}
-            <small>
-              {anyOverLimit
-                ? "上限を超えている部門の選択を解除すると進めます。"
-                : !allReady
-                  ? "6部門すべての必要数を満たすと進めます。"
-                  : state !== "saved"
-                    ? "下書きの保存完了をお待ちください。"
-                    : "確定する前に、投票内容を確認できます。"}
-            </small>
-          </div>
         </aside>
       </div>
       <a

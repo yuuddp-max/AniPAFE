@@ -693,13 +693,13 @@ img {
 .poll-dates {
   font-size: 11px;
   color: var(--muted);
-  border-left: 1px solid var(--line);
-  padding-left: 23px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-top: 12px;
 }
 .poll-dates > span {
-  display: block;
-  font-size: 9px;
-  margin-bottom: 6px;
+  font-size: inherit;
 }
 .poll-dates strong {
   font-weight: 400;
@@ -1200,19 +1200,19 @@ img {
   margin: 12px 0;
 }
 .review-action {
-  border-top: 1px solid var(--line);
-  padding-top: 18px;
-  margin-top: 12px;
+  flex: 0 0 280px;
+  border-left: 1px solid var(--line);
+  padding-left: 23px;
 }
 .review-action .button {
   width: 100%;
-  font-size: 11px;
-  padding: 10px;
+  font-size: 14px;
+  padding: 14px;
 }
 .review-action > small {
   display: block;
   text-align: center;
-  font-size: 8px;
+  font-size: 11px;
   color: var(--muted);
   margin: 10px 0 0;
 }
@@ -1673,12 +1673,12 @@ td button {
     font-size: 24px;
   }
   .poll-dates {
+    margin-top: 12px;
+  }
+  .review-action {
     border: 0;
     padding: 0;
-    margin-top: 18px;
-  }
-  .poll-dates > strong br {
-    display: none;
+    margin-top: 20px;
   }
   .vote-status {
     font-size: 10px;

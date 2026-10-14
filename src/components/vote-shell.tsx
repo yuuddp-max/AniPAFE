@@ -6,6 +6,14 @@ import { jst } from "@/lib/validation";
 export function VoteShell({ children }: { children: React.ReactNode }) {
   const { data, entries, state, message, save, submitted } = useVotes();
   const path = usePathname();
+  const anyOverLimit = data.awards.some(
+      (a) => entries.filter((e) => e.award_code === a.code).length > a.max_votes,
+    ),
+    allReady =
+      !anyOverLimit &&
+      data.awards.every(
+        (a) => entries.filter((e) => e.award_code === a.code).length >= a.min_votes,
+      );
   return (
     <>
       <div className="vote-heading">
@@ -13,14 +21,38 @@ export function VoteShell({ children }: { children: React.ReactNode }) {
           <span className="eyebrow">AUDIENCE AWARDS · 2026</span>
           <h1>あなたの「好き」を、一票に。</h1>
           <p>6つの賞から、心に残った作品を選んでください。</p>
+          <div className="poll-dates">
+            <span>投票期間（日本時間）</span>
+            <strong>
+              {jst(data.poll.starts_at)} 〜 {jst(data.poll.ends_at)}
+            </strong>
+          </div>
         </div>
-        <div className="poll-dates">
-          <span>投票期間（日本時間）</span>
-          <strong>
-            {jst(data.poll.starts_at)}
-            <br />〜 {jst(data.poll.ends_at)}
-          </strong>
-        </div>
+        {data.awards.some((a) => path === `/vote/${a.code}`) && (
+          <div className="review-action">
+            {allReady && state === "saved" ? (
+              <Link
+                className="button"
+                href={submitted ? "/vote/complete" : "/vote/review"}
+              >
+                {submitted ? "投票結果を確認" : "最終確認へ"} →
+              </Link>
+            ) : (
+              <button className="button" disabled>
+                最終確認へ →
+              </button>
+            )}
+            <small>
+              {anyOverLimit
+                ? "上限を超えている部門の選択を解除すると進めます。"
+                : !allReady
+                  ? "6部門すべての必要数を満たすと進めます。"
+                  : state !== "saved"
+                    ? "下書きの保存完了をお待ちください。"
+                    : "確定する前に、投票内容を確認できます。"}
+            </small>
+          </div>
+        )}
       </div>
       <div className="vote-status" role="status">
         <span>
