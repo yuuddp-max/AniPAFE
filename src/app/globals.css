@@ -676,8 +676,8 @@ img {
 .vote-heading {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin: 20px 0 28px;
+  align-items: flex-end;
+  margin: 20px 0 16px;
   gap: 25px;
 }
 .vote-heading h1 {
@@ -691,7 +691,8 @@ img {
   margin: 0;
 }
 .poll-dates {
-  font-size: 11px;
+  font-size: 14px;
+  font-weight: 700;
   color: var(--muted);
   display: flex;
   flex-wrap: wrap;
@@ -702,7 +703,7 @@ img {
   font-size: inherit;
 }
 .poll-dates strong {
-  font-weight: 400;
+  font-weight: inherit;
 }
 .vote-status {
   display: flex;
