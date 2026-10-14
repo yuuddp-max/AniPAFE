@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { profileSchema } from "@/lib/validation";
 import type { Profile } from "@/lib/types";
@@ -12,6 +13,7 @@ export function ProfileForm({
   googleName: string;
   locked: boolean;
 }) {
+  const router = useRouter();
   const [name, setName] = useState(profile?.display_name ?? googleName),
     [nico, setNico] = useState(profile?.nico_user_id ?? ""),
     [message, setMessage] = useState(""),
@@ -45,6 +47,7 @@ export function ProfileForm({
           ? `保存しました。自薦に該当する下書き${data.removed}件を削除しました。`
           : "プロフィールを保存しました。",
       );
+      router.refresh();
     } catch (e) {
       setMessage(
         (e as Error).message || "保存できませんでした。再試行してください。",

@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { configured, supabase } from "./supabase/server";
 export class HttpError extends Error {
@@ -9,7 +10,7 @@ export class HttpError extends Error {
     super(message);
   }
 }
-export async function identity() {
+export const identity = cache(async () => {
   if (!configured()) return null;
   const db = await supabase();
   const {
@@ -19,7 +20,7 @@ export async function identity() {
   if (error || !user || !user.identities?.some((i) => i.provider === "google"))
     return null;
   return { db, user };
-}
+});
 export async function pageUser() {
   const auth = await identity();
   if (!auth) redirect("/login");

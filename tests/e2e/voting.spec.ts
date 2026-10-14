@@ -28,6 +28,65 @@ async function login(
 test.beforeEach(async ({ request }) => {
   await request.post("http://127.0.0.1:54329/__test/reset");
 });
+test("共通ヘッダーのログイン表示・プロフィール保存後の更新・投票リンク・ログアウト", async ({
+  page,
+  context,
+  request,
+}) => {
+  await page.goto("/login");
+  const account = page.getByRole("navigation", {
+    name: "アカウント",
+    exact: true,
+  });
+  await expect(account.getByText("未ログイン", { exact: true })).toBeVisible();
+  await expect(
+    account.getByRole("link", { name: "投票画面へ", exact: true }),
+  ).toHaveAttribute("href", "/vote/overall");
+  await login(context, request);
+  await page.goto("/profile");
+  await expect(account.getByText("ログイン中", { exact: true })).toBeVisible();
+  await expect(
+    account.getByText("Google表示名", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText(/Googleログインが完了しました/)).toBeVisible();
+  await page
+    .getByLabel("ユーザー名", { exact: false })
+    .fill("ヘッダー表示テスト");
+  await page.getByLabel("ニコニコユーザーID", { exact: false }).fill("350396");
+  await page.getByRole("button", { name: "プロフィールを保存" }).click();
+  await expect(
+    account.getByText("ヘッダー表示テスト", { exact: true }),
+  ).toBeVisible();
+  await account.getByRole("link", { name: "投票画面へ", exact: true }).click();
+  await expect(page).toHaveURL(/\/vote\/overall$/);
+  await expect(page.locator(".video-card")).toHaveCount(24);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(
+    account.getByText("ヘッダー表示テスト", { exact: true }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: "artifacts/account-header-mobile.png",
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.screenshot({
+    path: "artifacts/account-header-desktop.png",
+    fullPage: true,
+  });
+  await account
+    .getByRole("button", { name: "ログアウト", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(account.getByText("未ログイン", { exact: true })).toBeVisible();
+  await expect(
+    account.getByText("ヘッダー表示テスト", { exact: true }),
+  ).toHaveCount(0);
+});
 test("Google PKCE開始・スコープ・callback送信先", async ({ request }) => {
   const response = await request.post("/auth/login", {
     headers: { Origin: "http://localhost:3000" },

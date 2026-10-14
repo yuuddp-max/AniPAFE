@@ -245,21 +245,38 @@ img {
   text-decoration: underline;
 }
 .user-nav {
-  max-width: 1280px;
-  margin: 0 auto;
+  margin-left: auto;
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 20px;
-  padding: 15px 25px;
-  font-size: 11px;
+  gap: 14px;
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+.user-nav > a,
+.user-nav form {
+  white-space: nowrap;
+}
+.user-identity {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  min-width: 0;
+}
+.login-state {
+  color: var(--muted);
+  font-size: 10px;
 }
 .user-nav form {
   display: inline-flex;
 }
 .user-name {
-  margin-right: auto;
   color: var(--green);
+  font-weight: 700;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .narrow {
   max-width: 650px;
@@ -1360,6 +1377,8 @@ td button {
 @media (max-width: 760px) {
   .site-header {
     padding: 19px 20px;
+    flex-wrap: wrap;
+    gap: 14px;
   }
   .brand {
     font-size: 20px;
@@ -1458,13 +1477,11 @@ td button {
     text-align: left;
   }
   .user-nav {
-    padding: 15px 20px;
-    gap: 15px;
-    flex-wrap: wrap;
-  }
-  .user-nav .user-name {
     flex-basis: 100%;
-    overflow-wrap: anywhere;
+    gap: 12px;
+  }
+  .user-identity {
+    flex-basis: 100%;
   }
   .vote-container {
     padding: 0 18px;

@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { pageUser } from "@/lib/auth";
-import { UserNav } from "@/components/user-nav";
 import { AdminDashboard } from "@/components/admin-dashboard";
 import { adminRows } from "@/lib/admin-data";
 import type { Profile, Ballot } from "@/lib/types";
@@ -29,7 +28,6 @@ export default async function AdminPage() {
     if (r.error) throw new Error("運営データの読み込みに失敗しました。");
   return (
     <>
-      <UserNav name="運営管理" admin />
       <main id="main" className="admin-main">
         <AdminDashboard
           report={report.data}

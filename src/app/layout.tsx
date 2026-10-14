@@ -1,16 +1,43 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { identity } from "@/lib/auth";
+import { UserNav } from "@/components/user-nav";
 import "./globals.css";
+export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: { default: "AniPAFE2026 人気投票", template: "%s | AniPAFE2026" },
   description: "心に残った、その一作へ。AniPAFE2026参加作品の人気投票サイト。",
   robots: { index: false, follow: false },
 };
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const auth = await identity();
+  let name: string | null = null;
+  let admin = false;
+  if (auth) {
+    const [profile, access] = await Promise.all([
+      auth.db
+        .from("profiles")
+        .select("display_name")
+        .eq("user_id", auth.user.id)
+        .maybeSingle(),
+      auth.db
+        .from("admin_users")
+        .select("auth_user_id")
+        .eq("auth_user_id", auth.user.id)
+        .maybeSingle(),
+    ]);
+    name =
+      profile.data?.display_name ??
+      (String(
+        auth.user.user_metadata.full_name ?? auth.user.user_metadata.name ?? "",
+      ).trim() ||
+        "Googleユーザー");
+    admin = !access.error && !!access.data;
+  }
   return (
     <html lang="ja" data-scroll-behavior="smooth">
       <body>
@@ -28,7 +55,7 @@ export default function RootLayout({
             </span>
           </Link>
           <span className="header-label">みんなで選ぶ、今年の一作。</span>
-          <span className="header-pill">人気投票</span>
+          <UserNav name={name} admin={admin} />
         </header>
         {children}
         <footer className="site-footer">
