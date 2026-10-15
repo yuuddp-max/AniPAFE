@@ -9,6 +9,11 @@ export async function GET(request: Request) {
       throw new HttpError(400, "出力形式が不正です。");
     const { data, error } = await db.rpc("admin_report");
     if (error) throw error;
+    if (Number(new URL(request.url).searchParams.get("year")) !== data.year)
+      throw new HttpError(
+        409,
+        "対象年度が変更されました。再読み込みしてください。",
+      );
     const rows =
       type === "ranking"
         ? [
@@ -45,7 +50,7 @@ export async function GET(request: Request) {
     return new Response(csv(rows), {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="anipafe2026-${type}.csv"`,
+        "Content-Disposition": `attachment; filename="anipafe${data.year}-${type}.csv"`,
         "Cache-Control": "private, no-store",
       },
     });

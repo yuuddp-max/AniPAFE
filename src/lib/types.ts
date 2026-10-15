@@ -35,6 +35,7 @@ export type Entry = {
   comment: string;
 };
 export type Ballot = {
+  year: number;
   id: string;
   voter_id: string;
   status: "draft" | "submitted";
@@ -42,12 +43,45 @@ export type Ballot = {
   submitted_at: string | null;
 };
 export type Poll = {
+  year: number;
+  title: string;
   id: number;
   starts_at: string | null;
   ends_at: string | null;
   is_published: boolean;
   results_public: boolean;
   master_revision: number;
+};
+export type Ranking = {
+  award_code: string;
+  award_name: string;
+  video_id: string;
+  title: string;
+  author_name: string;
+  votes: number;
+  rank: number;
+};
+export type HistoryYear = {
+  year: number;
+  title: string;
+  ends_at: string | null;
+  results_public: boolean;
+  status: Ballot["status"] | null;
+  submitted_at: string | null;
+  entry_count: number;
+};
+export type VoteHistory = {
+  years: HistoryYear[];
+  poll?: Poll;
+  ballot?: Ballot | null;
+  entries?: (Entry & {
+    award_name: string;
+    title: string;
+    author_name: string;
+    watch_url: string;
+  })[];
+  rankings?: Ranking[];
+  results_public?: boolean;
 };
 export type VoteData = {
   profile: Profile;

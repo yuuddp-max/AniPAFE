@@ -45,6 +45,13 @@ export function UserNav({
         >
           投票画面へ
         </Link>
+        <Link
+          href="/history"
+          aria-current={path.startsWith("/history") ? "page" : undefined}
+          onClick={() => setOpen(false)}
+        >
+          過去投票データ
+        </Link>
         {admin && (
           <Link
             href="/admin"

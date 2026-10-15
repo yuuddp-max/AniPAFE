@@ -11,7 +11,7 @@ export default async function VoteLayout({
   return (
     <>
       <div className="vote-container">
-        <VoteProvider data={data}>
+        <VoteProvider key={data.poll.year} data={data}>
           <VoteShell>{children}</VoteShell>
         </VoteProvider>
       </div>

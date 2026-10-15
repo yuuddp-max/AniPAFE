@@ -3,19 +3,24 @@ import Link from "next/link";
 import { identity } from "@/lib/auth";
 import { UserNav } from "@/components/user-nav";
 import { googleAvatar } from "@/lib/avatar";
+import { pollHeader } from "@/lib/poll";
 import "./globals.css";
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = {
-  title: { default: "AniPAFE2026 人気投票", template: "%s | AniPAFE2026" },
-  description: "心に残った、その一作へ。AniPAFE2026参加作品の人気投票サイト。",
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const poll = await pollHeader();
+  return {
+    title: { default: poll.title, template: `%s | AniPAFE${poll.year}` },
+    description: `心に残った、その一作へ。AniPAFE${poll.year}参加作品の人気投票サイト。`,
+    robots: { index: false, follow: false },
+  };
+}
 export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const auth = await identity();
+  const poll = await pollHeader();
   let name: string | null = null;
   let admin = false;
   if (auth) {
@@ -51,7 +56,7 @@ export default async function RootLayout({
               A<span>✦</span>
             </span>
             <span>
-              AniPAFE<span className="brand-year">2026</span>
+              AniPAFE<span className="brand-year">{poll.year}</span>
               <small>ANIME MAD FESTIVAL</small>
             </span>
           </Link>
@@ -63,7 +68,7 @@ export default async function RootLayout({
         </header>
         {children}
         <footer className="site-footer">
-          <span>AniPAFE2026 人気投票</span>
+          <span>{poll.title}</span>
           <span>作品への想いを、一票に。</span>
           <Link href="/privacy">プライバシーについて</Link>
         </footer>

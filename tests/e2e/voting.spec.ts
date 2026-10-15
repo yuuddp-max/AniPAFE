@@ -6,6 +6,7 @@ import {
 } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
 import { fixtureCsv } from "../fixtures";
+import { parseImport } from "../../src/lib/importer";
 const appOrigin = process.env.ANIPAFE_TEST_ORIGIN ?? "http://localhost:3000";
 const googleAvatarUrl = "https://lh3.googleusercontent.com/anipafe-test-avatar";
 const avatarSvg =
@@ -34,6 +35,174 @@ test.beforeEach(async ({ request, page }) => {
   await page.route(googleAvatarUrl, (route) =>
     route.fulfill({ contentType: "image/svg+xml", body: avatarSvg }),
   );
+});
+test("年度設定・タイトル変更・過去の本人投票・公開結果・年度をまたぐ保存拒否", async ({
+  page,
+  context,
+  request,
+  browser,
+}) => {
+  await login(context, request);
+  await page.goto("/profile");
+  await page.getByLabel("ニコニコユーザーID", { exact: false }).fill("350396");
+  await page.getByRole("button", { name: "プロフィールを保存" }).click();
+  await expect(page.getByRole("link", { name: "投票へ進む" })).toBeVisible();
+  const videos = (
+    await parseImport(await fixtureCsv(), "videos_seed.csv")
+  ).videos.filter((v) => v.author_nico_user_id !== "350396");
+  const choices = [
+    ...videos
+      .slice(0, 5)
+      .map((v) => ({
+        award_code: "overall",
+        video_id: v.video_id,
+        comment: "思い出の作品 <script>window.HISTORY_XSS=1</script>",
+      })),
+    ...["music", "composition", "creative", "humor", "theme"].map((a) => ({
+      award_code: a,
+      video_id: (a === "theme" ? videos.find((v) => v.theme)! : videos[0])
+        .video_id,
+      comment: "",
+    })),
+  ];
+  const headers = { Origin: appOrigin };
+  const saved = await page.request.post("/api/ballot", {
+    headers,
+    data: { year: 2026, revision: 1, entries: choices },
+  });
+  expect(saved.status()).toBe(200);
+  const submitted = await page.request.post("/api/ballot/submit", {
+    headers,
+    data: { year: 2026, revision: 2 },
+  });
+  expect(submitted.status()).toBe(200);
+  await page.goto("/vote/overall");
+  const adminContext = await browser.newContext();
+  await login(adminContext, request, "admin");
+  const admin = await adminContext.newPage();
+  try {
+    await admin.goto(`${appOrigin}/admin`);
+    await admin.getByText("新しい年度を追加", { exact: true }).click();
+    await admin
+      .getByLabel("新年度の投票画面タイトル")
+      .fill("AniPAFE2027 心に残った作品への一票");
+    await admin
+      .getByRole("button", { name: "年度を追加", exact: true })
+      .click();
+    await expect(admin.getByRole("status")).toContainText("保存しました");
+    await admin.getByLabel("対象年度", { exact: true }).selectOption("2027");
+    admin.once("dialog", (d) => d.accept());
+    await admin
+      .getByRole("button", { name: "対象年度を切り替え", exact: true })
+      .click();
+    await expect(
+      admin.getByText("対象年度：2027年度", { exact: true }),
+    ).toBeVisible();
+    const stale = await page.request.post("/api/ballot", {
+      headers,
+      data: { year: 2026, revision: 3, entries: choices },
+    });
+    expect(stale.status()).toBe(409);
+    await page.reload();
+    await expect(
+      page.getByRole("heading", {
+        name: "AniPAFE2027 心に残った作品への一票",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(page).toHaveTitle("AniPAFE2027 心に残った作品への一票");
+    await expect(page.locator(".video-card")).toHaveCount(0);
+    await page
+      .getByRole("link", { name: "過去投票データ", exact: true })
+      .click();
+    await page
+      .locator(".history-year-card")
+      .filter({ hasText: "2026" })
+      .click();
+    await expect(page.locator(".history-award")).toHaveCount(6);
+    await expect(page.locator(".history-award").first()).toContainText(
+      videos[0].title,
+    );
+    expect(await page.evaluate(() => "HISTORY_XSS" in window)).toBe(false);
+    await page.getByRole("button", { name: "投票結果", exact: true }).click();
+    await expect(
+      page.getByRole("heading", { name: "この年度の投票結果は未公開です" }),
+    ).toBeVisible();
+    await admin.getByLabel("対象年度", { exact: true }).selectOption("2026");
+    admin.once("dialog", (d) => d.accept());
+    await admin
+      .getByRole("button", { name: "対象年度を切り替え", exact: true })
+      .click();
+    await expect(
+      admin.getByText("対象年度：2026年度", { exact: true }),
+    ).toBeVisible();
+    await admin
+      .getByRole("button", { name: "年度・投票設定", exact: true })
+      .click();
+    await admin
+      .getByLabel("投票画面タイトル", { exact: true })
+      .fill("AniPAFE2026 人気投票の記録");
+    await admin
+      .getByLabel("開始日時", { exact: true })
+      .fill("2025-01-01T00:00");
+    await admin
+      .getByLabel("終了日時", { exact: true })
+      .fill("2025-12-31T00:00");
+    await admin
+      .getByLabel("終了後の投票結果を過去投票データに公開する")
+      .check();
+    admin.once("dialog", (d) => d.accept());
+    await admin
+      .getByRole("button", { name: "設定を保存", exact: true })
+      .click();
+    await expect(admin.getByRole("status")).toContainText("保存しました");
+    await admin.getByLabel("対象年度", { exact: true }).selectOption("2027");
+    admin.once("dialog", (d) => d.accept());
+    await admin
+      .getByRole("button", { name: "対象年度を切り替え", exact: true })
+      .click();
+    await expect(
+      admin.getByText("対象年度：2027年度", { exact: true }),
+    ).toBeVisible();
+    await page.reload();
+    await expect(
+      page.getByRole("heading", {
+        name: "AniPAFE2026 人気投票の記録",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "投票結果", exact: true }).click();
+    await expect(page.getByRole("table")).toBeVisible();
+    await expect(page.getByRole("table")).toContainText(videos[0].title);
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.screenshot({
+      path: "artifacts/history-results-desktop.png",
+      fullPage: true,
+    });
+    await page.getByRole("button", { name: "自分の投票", exact: true }).click();
+    await page.screenshot({
+      path: "artifacts/history-votes-desktop.png",
+      fullPage: true,
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
+    await page.screenshot({
+      path: "artifacts/history-votes-mobile.png",
+      fullPage: true,
+    });
+    await login(context, request, "other");
+    await page.reload();
+    await expect(
+      page.getByText(/この年度の投票記録はありません/),
+    ).toBeVisible();
+    await expect(page.locator(".history-award")).toHaveCount(0);
+  } finally {
+    await adminContext.close();
+  }
 });
 test("共通ヘッダーのログイン表示・プロフィール保存後の更新・投票リンク・ログアウト", async ({
   page,
@@ -659,6 +828,7 @@ test("管理者の再取込プレビュー・確認トークン・受付OFF・�
   const preview = await page.request.post("/api/admin/import", {
     headers,
     multipart: {
+      year: "2026",
       file: { name: "videos_seed.csv", mimeType: "text/csv", buffer: file },
     },
   });
@@ -670,6 +840,7 @@ test("管理者の再取込プレビュー・確認トークン・受付OFF・�
   const wrong = await page.request.post("/api/admin/import", {
     headers,
     multipart: {
+      year: "2026",
       file: { name: "videos_seed.csv", mimeType: "text/csv", buffer: file },
       confirm: "true",
       token: "wrong",
@@ -679,6 +850,7 @@ test("管理者の再取込プレビュー・確認トークン・受付OFF・�
   const applied = await page.request.post("/api/admin/import", {
     headers,
     multipart: {
+      year: "2026",
       file: { name: "videos_seed.csv", mimeType: "text/csv", buffer: file },
       confirm: "true",
       token: p.token,
@@ -704,6 +876,9 @@ test("管理者の再取込プレビュー・確認トークン・受付OFF・�
     headers,
     data: {
       action: "settings",
+      year: 2026,
+      title: "AniPAFE2026 人気投票",
+      results_public: false,
       starts_at: null,
       ends_at: null,
       is_published: false,
@@ -849,7 +1024,9 @@ test("プロフィール→6部門→感想自動保存→再読み込み復元�
   await expect(
     page.getByRole("heading", { name: "運営管理", exact: true }),
   ).toBeVisible();
-  const csv = await page.request.get("/api/admin/export?type=details");
+  const csv = await page.request.get(
+    "/api/admin/export?type=details&year=2026",
+  );
   expect(csv.status()).toBe(200);
   expect(await csv.text()).toContain("すてきな作品");
   expect(await csv.text()).toContain("350396");

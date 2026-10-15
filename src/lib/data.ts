@@ -2,8 +2,10 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { pageUser } from "./auth";
 import type { VoteData } from "./types";
+import { currentPoll } from "./poll";
 export async function voteData(): Promise<VoteData> {
   const { db, user } = await pageUser();
+  const poll = await currentPoll(db);
   const results = await Promise.all([
     db.from("data_profiles").select("*").eq("user_id", user.id).maybeSingle(),
     db.from("master_award_types").select("*").order("display_order"),
@@ -11,9 +13,14 @@ export async function voteData(): Promise<VoteData> {
       .from("data_mad")
       .select("*")
       .eq("is_active", true)
+      .eq("year", poll.year)
       .order("display_order"),
-    db.from("data_ballot").select("*").eq("voter_id", user.id).maybeSingle(),
-    db.from("master_poll_settings").select("*").eq("id", 1).single(),
+    db
+      .from("data_ballot")
+      .select("*")
+      .eq("voter_id", user.id)
+      .eq("year", poll.year)
+      .maybeSingle(),
     db
       .from("master_admin_users")
       .select("auth_user_id")
@@ -43,7 +50,7 @@ export async function voteData(): Promise<VoteData> {
       ...e,
       comment: e.comment ?? "",
     })),
-    poll: results[4].data,
-    isAdmin: !!results[5].data,
+    poll,
+    isAdmin: !!results[4].data,
   };
 }

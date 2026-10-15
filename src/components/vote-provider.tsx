@@ -56,6 +56,7 @@ export function VoteProvider({
             body: JSON.stringify({
               entries: JSON.parse(snapshot),
               revision: revision.current,
+              year: data.poll.year,
             }),
             signal: AbortSignal.timeout(15000),
           });
@@ -83,7 +84,7 @@ export function VoteProvider({
     } finally {
       inflight.current = null;
     }
-  }, [submitted]);
+  }, [submitted, data.poll.year]);
   function change(next: Entry[]) {
     if (submitted) return;
     latest.current = next;

@@ -4,7 +4,8 @@
 import { createServer } from "node:http";
 import { createHmac } from "node:crypto";
 import { database, call, U1, U2, ADMIN } from "./database";
-let fixture = await database();
+import { fixtureSeedSql } from "./fixtures";
+const fixture = await database();
 const users = { voter: U1, other: U2, admin: ADMIN };
 const sessions = new Map<string, string>();
 function user(uid: string) {
@@ -85,6 +86,7 @@ const tables = new Set([
   "master_admin_users",
   "admin_users",
   "audit_logs",
+  "master_event_settings",
 ]);
 const functions = new Set([
   "save_profile",
@@ -96,6 +98,9 @@ const functions = new Set([
   "admin_profile",
   "admin_thumbnail",
   "admin_report",
+  "poll_header",
+  "manage_year",
+  "vote_history",
 ]);
 const server = createServer(async (req, res) => {
   const url = new URL(req.url!, "http://127.0.0.1:54329");
@@ -109,8 +114,18 @@ const server = createServer(async (req, res) => {
   try {
     if (url.pathname === "/health") return send(200, { ok: true });
     if (url.pathname === "/__test/reset" && req.method === "POST") {
-      await fixture.db.close();
-      fixture = await database();
+      // Keep one WASM instance: repeatedly disposing PGlite can crash Node's Windows JIT.
+      // Reset all test data, including years added by the previous browser test.
+      await fixture.db.transaction(async (tx) => {
+        await tx.exec(`delete from public.data_ballots; delete from public.data_ballot;
+          delete from public.data_profiles; delete from public.audit_logs; delete from public.data_mad;
+          update public.master_event_settings set target_year=2026 where id=1;
+          delete from public.master_poll_settings where year<>2026;
+          update public.master_poll_settings set title='AniPAFE2026 人気投票',master_revision=0,
+            starts_at=now()-interval '1 day',ends_at=now()+interval '1 day',is_published=true,results_public=false where year=2026;`);
+        await tx.exec(await fixtureSeedSql());
+      });
+      sessions.clear();
       await prepare();
       return send(200, { ok: true });
     }
@@ -126,9 +141,9 @@ const server = createServer(async (req, res) => {
     const uid = sessions.get(
       req.headers.authorization?.replace("Bearer ", "") ?? "",
     );
-    if (!uid)
+    if (!uid && url.pathname !== "/rest/v1/rpc/poll_header")
       return send(401, { code: "bad_jwt", message: "Test session required" });
-    if (url.pathname === "/auth/v1/user") return send(200, user(uid));
+    if (url.pathname === "/auth/v1/user") return send(200, user(uid!));
     if (url.pathname === "/auth/v1/logout") return send(200, {});
     if (url.pathname.startsWith("/rest/v1/rpc/")) {
       const fn = url.pathname.split("/").pop()!;
@@ -146,9 +161,10 @@ const server = createServer(async (req, res) => {
       );
       const result = await call(
         fixture.db,
-        uid,
+        uid ?? null,
         `select public.${fn}(${keys.map((k, i) => `${k} => $${i + 1}`).join(",")}) as result`,
         values,
+        uid ? "authenticated" : "anon",
       );
       return send(200, (result.rows[0] as { result: unknown }).result);
     }
@@ -188,7 +204,7 @@ const server = createServer(async (req, res) => {
     if (!Number.isInteger(limit) || limit < 0) throw new Error("Invalid limit");
     const result = await call(
       fixture.db,
-      uid,
+      uid ?? null,
       `select ${select} from public.${table}${conditions.length ? " where " + conditions.join(" and ") : ""}${order} limit ${limit} offset ${Math.max(0, Number(url.searchParams.get("offset") ?? 0))}`,
       params,
     );

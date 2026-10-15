@@ -1,4 +1,236 @@
 @import "tailwindcss";
+
+.history-main {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 48px 32px 80px;
+}
+.history-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 32px;
+}
+.history-heading h1 {
+  font-size: 32px;
+  font-weight: 700;
+  margin: 10px 0;
+}
+.history-years {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 24px 0 32px;
+}
+.history-year-card {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  gap: 14px;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: white;
+  color: inherit;
+  text-decoration: none;
+}
+.history-year-card:hover,
+.history-year-card[aria-current="page"] {
+  border-color: var(--green);
+  box-shadow: 0 6px 22px #3530220a;
+}
+.history-year-card[aria-current="page"] {
+  background: #fff9ed;
+  outline: 1px solid var(--green);
+}
+.history-year-number {
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  line-height: 1.1;
+}
+.history-year-number small {
+  font-size: 13px;
+  margin-left: 8px;
+  font-weight: 500;
+}
+.history-year-card strong {
+  overflow-wrap: anywhere;
+}
+.history-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  font-size: 11px;
+}
+.history-badges span {
+  background: #f3f1ea;
+  border-radius: 20px;
+  padding: 5px 9px;
+}
+.history-year-card > small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.history-detail {
+  min-width: 0;
+  padding-top: 12px;
+}
+.history-detail-title {
+  margin-bottom: 24px;
+}
+.history-detail-title h2 {
+  font-size: 24px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.vote-heading h1 {
+  overflow-wrap: anywhere;
+}
+.history-empty,
+.history-hint {
+  padding: 40px 24px;
+  text-align: center;
+  background: #f7f5ef;
+  border-radius: 16px;
+  color: var(--muted);
+  line-height: 1.9;
+}
+.history-empty > span {
+  font-size: 40px;
+  color: var(--green);
+}
+.history-empty h2,
+.history-empty h3 {
+  color: var(--ink);
+}
+.history-shortcut {
+  display: inline-block;
+  margin-top: 12px;
+  font-size: 13px;
+}
+.history-award {
+  margin: 24px 0;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.history-award h3 {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin: 0;
+  padding: 18px 24px;
+  background: #f7f5ef;
+  font-size: 18px;
+}
+.history-award h3 small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+.history-award article {
+  padding: 20px 24px;
+  border-top: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.history-award h4 {
+  margin: 0;
+  font-size: 15px;
+}
+.history-award p.muted {
+  font-size: 12px;
+}
+.history-rank {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #f3f1ea;
+  font-weight: 700;
+}
+.history-rank.top {
+  background: #f7dfa4;
+  color: #59421b;
+}
+.admin-year-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 18px;
+  padding: 20px;
+  margin: 24px 0;
+  background: #fff9ed;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+.admin-year-bar p {
+  margin: 5px 0;
+  font-size: 12px;
+}
+.admin-year-bar label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+}
+.admin-year-bar select,
+.year-create input {
+  max-width: 100%;
+  padding: 9px 12px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.year-create {
+  width: 100%;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+.year-create summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+.year-create form {
+  display: grid;
+  gap: 16px;
+  margin-top: 20px;
+  max-width: 560px;
+}
+.year-create .button {
+  justify-self: start;
+}
+@media (max-width: 800px) {
+  .history-years {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 600px) {
+  .history-main {
+    padding: 28px 16px 50px;
+  }
+  .history-heading {
+    align-items: start;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .history-years {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .history-year-card {
+    padding: 20px;
+  }
+  .history-award article,
+  .history-award h3 {
+    padding: 16px;
+  }
+  .admin-year-bar > div {
+    width: 100%;
+  }
+}
 :root {
   --paper: #faf9f4;
   --ink: #252c25;

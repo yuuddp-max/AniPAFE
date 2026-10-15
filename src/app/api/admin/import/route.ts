@@ -4,6 +4,7 @@ import { checkOrigin, handle } from "@/lib/http";
 import { parseImport } from "@/lib/importer";
 import { adminRows } from "@/lib/admin-data";
 import type { Ballot, Profile, Entry } from "@/lib/types";
+import { currentPoll } from "@/lib/poll";
 export async function POST(request: Request) {
   return handle(async () => {
     checkOrigin(request);
@@ -12,6 +13,12 @@ export async function POST(request: Request) {
       throw new HttpError(413, "ファイルは2MB以下にしてください。");
     const form = await request.formData(),
       file = form.get("file");
+    const current = await currentPoll(db);
+    if (Number(form.get("year")) !== current.year)
+      throw new HttpError(
+        409,
+        "対象年度が変更されました。再読み込みしてください。",
+      );
     if (!(file instanceof File) || file.size > 2097152)
       throw new HttpError(400, "CSVまたはXLSX（2MB以下）を指定してください。");
     const report = await parseImport(
@@ -25,14 +32,18 @@ export async function POST(request: Request) {
       ballots,
       profiles,
     ] = await Promise.all([
-      db.from("data_mad").select("*"),
+      db.from("data_mad").select("*").eq("year", current.year),
       db
         .from("master_poll_settings")
         .select("master_revision")
-        .eq("id", 1)
+        .eq("year", current.year)
         .single(),
-      adminRows<Entry & { ballot_id: string }>(db, "data_ballots"),
-      adminRows<Ballot>(db, "data_ballot"),
+      adminRows<Entry & { ballot_id: string }>(
+        db,
+        "data_ballots",
+        current.year,
+      ),
+      adminRows<Ballot>(db, "data_ballot", current.year),
       adminRows<Profile>(db, "data_profiles"),
     ]);
     if (error || pe) throw new Error("マスター取得に失敗しました。");
@@ -72,6 +83,7 @@ export async function POST(request: Request) {
         JSON.stringify({
           videos: report.videos,
           revision: poll!.master_revision,
+          year: current.year,
         }),
       )
       .digest("hex");
@@ -91,6 +103,7 @@ export async function POST(request: Request) {
       const { data, error } = await db.rpc("admin_import", {
         p_videos: report.videos,
         p_expected: poll!.master_revision,
+        p_year: current.year,
       });
       if (error) throw error;
       return { ok: true, result: data };

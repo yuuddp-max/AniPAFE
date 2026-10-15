@@ -27,9 +27,7 @@ export function VideoImage({
           role="img"
           aria-label={`${title}：サムネイル未取得`}
         >
-          <span>
-            AniPAFE<span>2026</span>
-          </span>
+          <span>AniPAFE</span>
           <small>サムネイル未取得</small>
           <span className="placeholder-shape" aria-hidden="true">
             ✦

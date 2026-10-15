@@ -40,6 +40,7 @@ type Preview = {
 export function AdminDashboard({
   report,
   poll,
+  years,
   videos,
   profiles,
   ballots,
@@ -51,6 +52,7 @@ export function AdminDashboard({
     details: Detail[];
   };
   poll: Poll;
+  years: Poll[];
   videos: Video[];
   profiles: Profile[];
   ballots: Ballot[];
@@ -72,6 +74,15 @@ export function AdminDashboard({
   const [start, setStart] = useState(localDate(poll.starts_at)),
     [end, setEnd] = useState(localDate(poll.ends_at)),
     [published, setPublished] = useState(poll.is_published),
+    [title, setTitle] = useState(poll.title),
+    [resultsPublic, setResultsPublic] = useState(poll.results_public),
+    [targetYear, setTargetYear] = useState(poll.year),
+    [newYear, setNewYear] = useState(
+      Math.min(2100, Math.max(...years.map((y) => y.year)) + 1),
+    ),
+    [newTitle, setNewTitle] = useState(
+      `AniPAFE${Math.min(2100, Math.max(...years.map((y) => y.year)) + 1)} 人気投票`,
+    ),
     [query, setQuery] = useState("");
   async function action(body: unknown) {
     setBusy(true);
@@ -80,7 +91,10 @@ export function AdminDashboard({
       const res = await fetch("/api/admin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          ...(body as Record<string, unknown>),
+          year: poll.year,
+        }),
         signal: AbortSignal.timeout(40000),
       });
       const d = await res.json();
@@ -100,6 +114,7 @@ export function AdminDashboard({
     try {
       const form = new FormData();
       form.set("file", file);
+      form.set("year", String(poll.year));
       if (confirm && preview) {
         form.set("confirm", "true");
         form.set("token", preview.token);
@@ -128,6 +143,83 @@ export function AdminDashboard({
     <>
       <span className="eyebrow">ORGANIZER DASHBOARD</span>
       <h1>運営管理</h1>
+      <section className="admin-year-bar" aria-label="対象年度の管理">
+        <div>
+          <strong>対象年度：{poll.year}年度</strong>
+          <p className="muted">{poll.title}</p>
+        </div>
+        <label>
+          対象年度
+          <select
+            aria-label="対象年度"
+            value={targetYear}
+            onChange={(e) => setTargetYear(Number(e.target.value))}
+          >
+            {years.map((y) => (
+              <option key={y.year} value={y.year}>
+                {y.year}年度
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          className="button secondary small"
+          disabled={busy || targetYear === poll.year}
+          onClick={() => {
+            if (
+              window.confirm(
+                `${targetYear}年度に切り替えます。投票画面と管理対象が変わります。既存の投票は保持されます。`,
+              )
+            )
+              void action({ action: "switch_year", target_year: targetYear });
+          }}
+        >
+          対象年度を切り替え
+        </button>
+        <details className="year-create">
+          <summary>新しい年度を追加</summary>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void action({
+                action: "create_year",
+                new_year: newYear,
+                title: newTitle,
+              });
+            }}
+          >
+            <label>
+              追加する年度
+              <input
+                type="number"
+                min={2000}
+                max={2100}
+                value={newYear}
+                required
+                onChange={(e) => {
+                  setNewYear(Number(e.target.value));
+                  setNewTitle(`AniPAFE${e.target.value} 人気投票`);
+                }}
+              />
+            </label>
+            <label>
+              新年度の投票画面タイトル
+              <input
+                maxLength={100}
+                required
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+              />
+            </label>
+            <p>
+              新年度は作品未登録・受付OFF・結果非公開で作成します。追加後に対象年度を切り替え、作品を取り込んでください。
+            </p>
+            <button className="button small" disabled={busy}>
+              年度を追加
+            </button>
+          </form>
+        </details>
+      </section>
       <p className="muted">
         集計対象は確定済み投票のみ。明細・感想は運営者限定です。
       </p>
@@ -149,7 +241,7 @@ export function AdminDashboard({
         {[
           ["ranking", "集計・明細"],
           ["videos", "作品マスター"],
-          ["settings", "投票期間"],
+          ["settings", "年度・投票設定"],
           ["voters", "投票者・修正"],
           ["audit", "操作履歴"],
         ].map(([key, label]) => (
@@ -185,13 +277,13 @@ export function AdminDashboard({
             </select>
             <a
               className="button secondary small"
-              href="/api/admin/export?type=ranking"
+              href={`/api/admin/export?type=ranking&year=${poll.year}`}
             >
               ランキングCSV ↓
             </a>
             <a
               className="button secondary small"
-              href="/api/admin/export?type=details"
+              href={`/api/admin/export?type=details&year=${poll.year}`}
             >
               投票明細CSV ↓
             </a>
@@ -445,10 +537,24 @@ export function AdminDashboard({
                   : null,
                 ends_at: end ? new Date(`${end}:00+09:00`).toISOString() : null,
                 is_published: published,
+                title,
+                results_public: resultsPublic,
               });
           }}
         >
-          <h2>投票期間（Asia/Tokyo）</h2>
+          <h2>{poll.year}年度の投票設定</h2>
+          <label>
+            投票画面タイトル
+            <input
+              value={title}
+              maxLength={100}
+              required
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </label>
+          <p className="muted">
+            この年度の投票画面・ブラウザータイトルに反映されます。日時は日本時間（Asia/Tokyo）です。
+          </p>
           <label>
             開始日時
             <input
@@ -475,8 +581,16 @@ export function AdminDashboard({
             />
             期間内の投票受付を有効にする
           </label>
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={resultsPublic}
+              onChange={(e) => setResultsPublic(e.target.checked)}
+            />
+            終了後の投票結果を過去投票データに公開する
+          </label>
           <p>
-            未設定・受付OFFの場合は保存・確定を許可しません。集計の一般公開はOFFです。
+            未設定・受付OFFの場合は保存・確定を許可しません。公開されるのは部門別の順位・得票数のみです。投票者名・個別の感想は公開しません。
           </p>
           <button className="button" disabled={busy}>
             設定を保存

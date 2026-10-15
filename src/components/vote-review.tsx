@@ -31,7 +31,10 @@ export function VoteReview({ complete = false }: { complete?: boolean }) {
       const response = await fetch("/api/ballot/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ revision: revision.current }),
+        body: JSON.stringify({
+          revision: revision.current,
+          year: data.poll.year,
+        }),
         signal: AbortSignal.timeout(15000),
       });
       const result = await response.json();

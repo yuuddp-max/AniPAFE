@@ -1,14 +1,17 @@
 import { pageUser } from "@/lib/auth";
 import { ProfileForm } from "@/components/profile-form";
+import { currentPoll } from "@/lib/poll";
 export const dynamic = "force-dynamic";
 export default async function ProfilePage() {
   const { db, user } = await pageUser();
+  const poll = await currentPoll(db);
   const [p, b] = await Promise.all([
     db.from("data_profiles").select("*").eq("user_id", user.id).maybeSingle(),
     db
       .from("data_ballot")
       .select("status")
       .eq("voter_id", user.id)
+      .eq("year", poll.year)
       .maybeSingle(),
   ]);
   if (p.error || b.error) throw new Error("プロフィール取得に失敗しました。");

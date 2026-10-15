@@ -7,20 +7,25 @@ export function VoteShell({ children }: { children: React.ReactNode }) {
   const { data, entries, state, message, save, submitted } = useVotes();
   const path = usePathname();
   const anyOverLimit = data.awards.some(
-      (a) => entries.filter((e) => e.award_code === a.code).length > a.max_votes,
+      (a) =>
+        entries.filter((e) => e.award_code === a.code).length > a.max_votes,
     ),
     allReady =
       !anyOverLimit &&
       data.awards.every(
-        (a) => entries.filter((e) => e.award_code === a.code).length >= a.min_votes,
+        (a) =>
+          entries.filter((e) => e.award_code === a.code).length >= a.min_votes,
       );
   return (
     <>
       <div className="vote-heading">
         <div>
-          <span className="eyebrow">AUDIENCE AWARDS · 2026</span>
-          <h1>あなたの「好き」を、一票に。</h1>
+          <span className="eyebrow">AUDIENCE AWARDS · {data.poll.year}</span>
+          <h1>{data.poll.title}</h1>
           <p>6つの賞から、心に残った作品を選んでください。</p>
+          <Link className="history-shortcut" href="/history">
+            自分の過去の投票を見る →
+          </Link>
           <div className="poll-dates">
             <span>投票期間（日本時間）</span>
             <strong>

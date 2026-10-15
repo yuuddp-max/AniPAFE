@@ -2,6 +2,7 @@ import Link from "next/link";
 import { configured } from "@/lib/supabase/server";
 import { identity } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { pollHeader } from "@/lib/poll";
 export const dynamic = "force-dynamic";
 export default async function Login({
   searchParams,
@@ -10,12 +11,14 @@ export default async function Login({
 }) {
   if (await identity()) redirect("/profile");
   const { error } = await searchParams;
+  const poll = await pollHeader();
   return (
     <main id="main" className="login-main">
       <section className="login-hero">
         <div className="hero-copy">
           <span className="eyebrow">
-            <span className="tiny-star">✦</span> AniPAFE 2026 · AUDIENCE AWARDS
+            <span className="tiny-star">✦</span> AniPAFE {poll.year} · AUDIENCE
+            AWARDS
           </span>
           <h1>
             心に残った、
@@ -61,7 +64,7 @@ export default async function Login({
           <span className="art-star star-two">✦</span>
           <div className="festival-ticket">
             <span className="ticket-top">YOUR FAVORITE, YOUR VOTE</span>
-            <div className="ticket-year">2026</div>
+            <div className="ticket-year">{poll.year}</div>
             <div className="ticket-word">AniPAFE</div>
             <div className="ticket-play">▶</div>
             <div className="ticket-bottom">
