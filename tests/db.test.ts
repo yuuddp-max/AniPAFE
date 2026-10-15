@@ -32,7 +32,7 @@ test("最大25票の確定と同時保存・二重確定の整合", async () => 
   ]);
   assert.deepEqual(receipts[0].rows, receipts[1].rows);
   const result = await db.query<{ n: number }>(
-    "select count(*)::integer n from public.ballot_entries e join public.ballots b on b.id=e.ballot_id where b.status='submitted'",
+    "select count(*)::integer n from public.data_ballots e join public.data_ballot b on b.id=e.ballot_id where b.status='submitted'",
   );
   assert.equal(result.rows[0].n, 25);
   await db.close();
@@ -64,7 +64,7 @@ test("上限超過の27件を下書き保存し、総合11票・選曲4票の確
     await call(db, U1, "select public.save_draft($1,1)", [
       JSON.stringify(draft),
     ]);
-    const restored = await call(db, U1, "select * from public.ballot_entries");
+    const restored = await call(db, U1, "select * from public.data_ballots");
     assert.equal(restored.rows.length, 27);
     assert.ok(
       restored.rows.every(
@@ -77,7 +77,8 @@ test("上限超過の27件を下書き保存し、総合11票・選曲4票の確
     );
     assert.equal(
       (
-        (await call(db, U1, "select status from public.ballots")).rows[0] as {
+        (await call(db, U1, "select status from public.data_ballot"))
+          .rows[0] as {
           status: string;
         }
       ).status,
@@ -98,14 +99,15 @@ test("上限超過の27件を下書き保存し、総合11票・選曲4票の確
     await call(db, U1, "select public.submit_ballot(4)");
     assert.equal(
       (
-        (await call(db, U1, "select status from public.ballots")).rows[0] as {
+        (await call(db, U1, "select status from public.data_ballot"))
+          .rows[0] as {
           status: string;
         }
       ).status,
       "submitted",
     );
     assert.equal(
-      (await call(db, U1, "select * from public.ballot_entries")).rows.length,
+      (await call(db, U1, "select * from public.data_ballots")).rows.length,
       25,
     );
   } finally {
@@ -131,7 +133,7 @@ test("実PostgreSQL: migration、DB強制検証、RLS、確定票集計・管理
     const result = await call(
       db,
       uid,
-      "select revision from public.ballots where voter_id=auth.uid()",
+      "select revision from public.data_ballot where voter_id=auth.uid()",
     );
     return Number((result.rows[0] as { revision: number }).revision);
   }
@@ -150,7 +152,7 @@ test("実PostgreSQL: migration、DB強制検証、RLS、確定票集計・管理
       );
       assert.ok(r.rows.every((r) => r.relrowsecurity));
       await assert.rejects(
-        call(db, null, "select * from public.videos", [], "anon"),
+        call(db, null, "select * from public.data_mad", [], "anon"),
         /permission denied/,
       );
       await assert.rejects(
@@ -158,12 +160,12 @@ test("実PostgreSQL: migration、DB強制検証、RLS、確定票集計・管理
         /permission denied/,
       );
       assert.equal(
-        (await call(db, OTHER, "select * from public.videos")).rows.length,
+        (await call(db, OTHER, "select * from public.data_mad")).rows.length,
         0,
       );
       await assert.rejects(profile(OTHER, "44"), /Google/);
       await assert.rejects(
-        call(db, U1, `insert into public.admin_users values ('${U1}')`),
+        call(db, U1, `insert into public.master_admin_users values ('${U1}')`),
         /permission denied/,
       );
       await assert.rejects(
@@ -188,11 +190,11 @@ test("実PostgreSQL: migration、DB強制検証、RLS、確定票集計・管理
       await profile(U2, "999999991");
       await profile(ADMIN, "999999992");
       assert.equal(
-        (await call(db, U1, "select * from public.ballots")).rows.length,
+        (await call(db, U1, "select * from public.data_ballot")).rows.length,
         1,
       );
       await assert.rejects(
-        call(db, U1, "update public.profiles set nico_user_id='123'"),
+        call(db, U1, "update public.data_profiles set nico_user_id='123'"),
         /permission denied/,
       );
     },
@@ -236,18 +238,18 @@ test("実PostgreSQL: migration、DB強制検証、RLS、確定票集計・管理
         /無効/,
       );
       assert.equal(
-        (await call(db, U1, "select * from public.ballot_entries")).rows.length,
+        (await call(db, U1, "select * from public.data_ballots")).rows.length,
         10,
       );
       assert.equal(
-        (await call(db, U2, "select * from public.ballot_entries")).rows.length,
+        (await call(db, U2, "select * from public.data_ballots")).rows.length,
         0,
       );
       await assert.rejects(
         call(
           db,
           U1,
-          `insert into public.ballot_entries(ballot_id,award_code,video_id) select id,'music','${plain.video_id}' from public.ballots`,
+          `insert into public.data_ballots(ballot_id,award_code,video_id) select id,'music','${plain.video_id}' from public.data_ballot`,
         ),
         /permission denied/,
       );
@@ -318,7 +320,7 @@ test("実PostgreSQL: migration、DB強制検証、RLS、確定票集計・管理
           before.rows[0] as { result: { rankings: { votes: number }[] } }
         ).result.rankings.every((r) => r.votes === 0),
       );
-      const loaded = (await call(db, U1, "select * from public.ballot_entries"))
+      const loaded = (await call(db, U1, "select * from public.data_ballots"))
         .rows as { award_code: string; comment: string }[];
       assert.equal(
         loaded.find((e) => e.award_code === "music")?.comment,
@@ -362,7 +364,7 @@ test("実PostgreSQL: migration、DB強制検証、RLS、確定票集計・管理
       const master = Number(
         (
           await db.query<{ master_revision: number }>(
-            "select master_revision from public.poll_settings",
+            "select master_revision from public.master_poll_settings",
           )
         ).rows[0].master_revision,
       );
@@ -377,7 +379,7 @@ test("実PostgreSQL: migration、DB強制検証、RLS、確定票集計・管理
       assert.equal(
         (
           await db.query<{ is_active: boolean }>(
-            "select is_active from public.videos where video_id=$1",
+            "select is_active from public.data_mad where video_id=$1",
             [affected.video_id],
           )
         ).rows[0].is_active,
@@ -398,7 +400,7 @@ test("実PostgreSQL: migration、DB強制検証、RLS、確定票集計・管理
       ]);
       await assert.rejects(save([], U2), /期間外/);
       await db.exec(
-        "update public.poll_settings set starts_at=now()-interval '1 day',ends_at=now()+interval '1 day',is_published=true;",
+        "update public.master_poll_settings set starts_at=now()-interval '1 day',ends_at=now()+interval '1 day',is_published=true;",
       );
     },
   );
@@ -413,7 +415,7 @@ test("実PostgreSQL: migration、DB強制検証、RLS、確定票集計・管理
       );
       assert.ok(
         (
-          await call(db, U1, "select video_id from public.ballot_entries")
+          await call(db, U1, "select video_id from public.data_ballots")
         ).rows.every(
           (r) => (r as { video_id: string }).video_id !== entries[0].video_id,
         ),
@@ -423,7 +425,7 @@ test("実PostgreSQL: migration、DB強制検証、RLS、確定票集計・管理
       const master = Number(
         (
           await db.query<{ master_revision: number }>(
-            "select master_revision from public.poll_settings",
+            "select master_revision from public.master_poll_settings",
           )
         ).rows[0].master_revision,
       );
@@ -438,7 +440,7 @@ test("実PostgreSQL: migration、DB強制検証、RLS、確定票集計・管理
       ]);
       assert.ok(
         (
-          await call(db, U1, "select video_id from public.ballot_entries")
+          await call(db, U1, "select video_id from public.data_ballots")
         ).rows.every(
           (r) => (r as { video_id: string }).video_id !== entries[0].video_id,
         ),
@@ -459,7 +461,7 @@ test("実PostgreSQL: migration、DB強制検証、RLS、確定票集計・管理
       const count = Number(
         (
           await db.query<{ n: number }>(
-            "select count(*)::integer n from public.ballot_entries",
+            "select count(*)::integer n from public.data_ballots",
           )
         ).rows[0].n,
       );
@@ -468,7 +470,7 @@ test("実PostgreSQL: migration、DB強制検証、RLS、確定票集計・管理
         Number(
           (
             await db.query<{ n: number }>(
-              "select count(*)::integer n from public.ballot_entries",
+              "select count(*)::integer n from public.data_ballots",
             )
           ).rows[0].n,
         ),

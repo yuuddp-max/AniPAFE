@@ -25,11 +25,15 @@ export async function POST(request: Request) {
       ballots,
       profiles,
     ] = await Promise.all([
-      db.from("videos").select("*"),
-      db.from("poll_settings").select("master_revision").eq("id", 1).single(),
-      adminRows<Entry & { ballot_id: string }>(db, "ballot_entries"),
-      adminRows<Ballot>(db, "ballots"),
-      adminRows<Profile>(db, "profiles"),
+      db.from("data_mad").select("*"),
+      db
+        .from("master_poll_settings")
+        .select("master_revision")
+        .eq("id", 1)
+        .single(),
+      adminRows<Entry & { ballot_id: string }>(db, "data_ballots"),
+      adminRows<Ballot>(db, "data_ballot"),
+      adminRows<Profile>(db, "data_profiles"),
     ]);
     if (error || pe) throw new Error("マスター取得に失敗しました。");
     const previous = new Map((old ?? []).map((v) => [v.video_id, v]));

@@ -31,7 +31,7 @@ await writeFile(
 const literal = (s: string) => "'" + s.replaceAll("'", "''") + "'";
 let sql = `-- Generated from videos_seed.csv; metadata URLs verified via getthumbinfo.\nselect public.bootstrap_import(${literal(JSON.stringify(videos))}::jsonb,true);\n`;
 for (const [id, url] of Object.entries(cache))
-  sql += `update public.videos set thumbnail_url=${literal(url)} where video_id=${literal(id)};\n`;
+  sql += `update public.data_mad set thumbnail_url=${literal(url)} where video_id=${literal(id)};\n`;
 await writeFile("supabase/seed.sql", sql);
 console.log({
   videos: videos.length,

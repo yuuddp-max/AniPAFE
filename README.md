@@ -10,9 +10,9 @@ Next.js 16 / React / TypeScript / Tailwind CSS / Supabase Auth・PostgreSQLで�
 
 ## 現在の外部設定状況
 
-**専用SupabaseのDB設定・初期データ取込・ローカル接続は完了しています。Google実認証とVercel公開は設定待ちです。** ユーザーが `yuuddp-max's Org` 内に新規作成した **AniPAFE**（ref: `ypsvsdaiyfjbzcffylju`、Tokyo）にのみmigrationを適用しました。有効107作品・テーマ55作品・サムネイル107件を確認し、publicの全8テーブルでRLSを有効にしています。既存のRamen db Tokyoには変更していません。
+**専用SupabaseのDB設定・初期データ取込・接続は完了し、Vercelの既存公開先は [anipafe.vercel.app](https://anipafe.vercel.app) です。** ユーザーが `yuuddp-max's Org` 内に新規作成した **AniPAFE**（ref: `ypsvsdaiyfjbzcffylju`、Tokyo）にのみmigrationを適用しました。有効107作品・テーマ55作品・サムネイル107件を確認し、publicの全8テーブルでRLSを有効にしています。既存のRamen db Tokyoには変更していません。Google実認証を使った一連の投票操作は、ローカルの認証ハーネスによる検証とは別に確認が必要です。
 
-ローカルの `.env.local` はこの専用プロジェクトに接続する設定済みです。Gitには含めません。クラウド上で自薦・他人の票・管理者アクセス・二重確定・確定後ID変更を検証し、検証用アカウントと票は全件ロールバックしました。投票期間は未設定・受付OFFのままです。Google ProviderはまだOFFです。
+ローカルの `.env.local` はこの専用プロジェクトに接続する設定済みです。Gitには含めません。クラウド上で自薦・他人の票・管理者アクセス・二重確定・確定後ID変更を検証し、検証用アカウントと票は全件ロールバックしました。投票期間と受付状態は運営画面で管理します。初期値と現在の運営設定は異なる場合があります。
 
 外部設定がなくても `npm run dev` で説明・ログイン画面を表示できます。投票画面にはGoogleログインが必要です。アプリにデモログインや認証回避の経路はありません。検証専用の認証通信ハーネスは `tests/` 配下だけにあります。
 
@@ -58,20 +58,43 @@ CLIにDB接続権限がない場合は、新規プロジェクトのSQL Editor�
 
 1. `supabase/migrations/20261014114241_initial_voting.sql`
 2. `supabase/migrations/20261014114745_add_vote_lookup_indexes.sql`
-3. `supabase/seed.sql`（運営者の手元で生成）
+3. `supabase/migrations/20261014215406_allow_over_limit_drafts.sql`
+4. `supabase/migrations/20261014223603_rename_voting_data_tables.sql`
+5. `supabase/migrations/20261014224724_rename_profiles_to_data_profiles.sql`
+6. `supabase/migrations/20261014225452_rename_settings_and_admin_master_tables.sql`
+7. `supabase/migrations/20261014230219_rename_award_types_to_master_award_types.sql`
+8. `supabase/seed.sql`（運営者の手元で生成）
 
 CLIで適用済みなら同じmigrationをSQL Editorで再実行しないでください。seedは作品をupsertし、既存票を消しません。ただし票が存在する場合はbootstrap処理が拒否するため、その後の再取込は運営画面から行います。
 
 ```sql
 select count(*) as active_videos,
        count(*) filter (where theme is not null) as theme_videos
-from public.videos where is_active;
+from public.data_mad where is_active;
 -- 107 / 55
-select code, name, min_votes, max_votes from public.award_types order by display_order;
+select code, name, min_votes, max_votes from public.master_award_types order by display_order;
 select tablename, rowsecurity from pg_tables where schemaname = 'public';
 ```
 
-クラウドのSecurity Advisorは指摘0件です。Performance Advisorが指摘した外部キーの索引不足2件を修正済みです。残るINFOは投票開始前の未使用索引3件だけで、これを理由に索引を削除しません。[Advisorの説明](https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index)。CLI接続後は `npx supabase db lint --linked` も実行できます。
+2026-10-15のSecurity Advisorは既存WARN 1件（漏洩パスワード保護の設定）で、今回の改名による新しい指摘はありません。初期構築時にPerformance Advisorが指摘した外部キーの索引不足2件は修正済みです。未使用索引のINFOだけを理由に索引を削除しません。[Advisorの説明](https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index)。CLI接続後は `npx supabase db lint --linked` も実行できます。
+
+### 投票データのテーブル名（2026-10-15変更）
+
+専用Supabaseへ `20261014223603_rename_voting_data_tables.sql` を適用済みです。実テーブルは `data_mad`（旧 `videos`）、`data_ballots`（旧 `ballot_entries`）、`data_ballot`（旧 `ballots`）です。この移行では旧名をRLSを引き継ぐ `security_invoker` 互換ビューとして作成しました。後続の確認時点では `videos` ビューは存在しません。現在のアプリは新しい実テーブル名を参照します。データのコピーは作成していません。
+
+アプリ・管理用スクリプトは新名を参照します。外部キー・索引・制約・ポリシーの名前は、既存の参照を維持するため変更していません。DB関数の参照先も更新し、RPC名・引数・返却形式は維持しています。検証結果は [テーブル名変更の記録](docs/table-renames.md) を参照してください。
+
+### プロフィールのテーブル名（2026-10-15追加変更）
+
+`supabase/migrations/20261014224724_rename_profiles_to_data_profiles.sql` を専用DBへ適用済みです。`profiles` の実テーブルは `data_profiles` へ改名し、旧名は `security_invoker` 互換ビューとして残しています。アプリ・管理画面・関連DB関数は新名を参照します。[プロフィール改名の検証記録](docs/profile-table-rename.md) に詳細をまとめています。
+
+### 投票設定と管理者のマスター名（2026-10-15追加変更）
+
+`supabase/migrations/20261014225452_rename_settings_and_admin_master_tables.sql` を専用DBへ適用済みです。`poll_settings` は `master_poll_settings`、`admin_users` は `master_admin_users` へ改名しました。旧名はRLSを引き継ぐ互換ビューです。アプリとDB関数は新名を参照します。[マスター改名の検証記録](docs/master-table-renames.md) を参照してください。
+
+### 部門のマスター名（2026-10-15追加変更）
+
+`supabase/migrations/20261014230219_rename_award_types_to_master_award_types.sql` を専用DBへ適用済みです。`award_types` の実テーブルは `master_award_types` へ改名しました。6部門の名前・表示順・選択数ルールと投票明細の外部キーを維持し、旧名はRLSを引き継ぐ互換ビューとして残しています。アプリとDB関数は新名を参照します。[部門マスター改名の検証記録](docs/award-table-rename.md) を参照してください。
 
 ## 2. Google OAuth
 
@@ -114,7 +137,7 @@ node --env-file=.env.local --import tsx scripts/fetch-thumbnails.ts
 運営者本人がGoogleログインした後、Supabase Authentication → UsersからそのユーザーUUIDを確認し、新規プロジェクトのSQL Editorで登録します。Googleのメールアドレスやuser_metadataで権限を判定しません。
 
 ```sql
-insert into public.admin_users(auth_user_id)
+insert into public.master_admin_users(auth_user_id)
 values ('REPLACE_WITH_VERIFIED_ADMIN_AUTH_UUID')
 on conflict do nothing;
 ```
@@ -163,6 +186,8 @@ Docker Desktopを使う本物のSupabaseローカル環境で確認する場合�
 
 ## 6. Vercel公開
 
+既存の `yuuddp-max/AniPAFE` の `main` はVercelチーム `ramen-db` の `anipafe` に連携され、Productionへ自動デプロイされます。更新は対象ファイルだけをコミットしてpushし、同じコミットのDeployment成功と公開URLの応答を確認します。以下の新規Import手順は、別環境を構築する場合のものです。
+
 1. このフォルダーを新しいGitリポジトリとして保存し、Vercelに **新規** Next.jsプロジェクトとしてImportします。元データも個人運営用リポジトリで適切に扱い、`.env.local` をコミットしません。
 2. Framework Preset: Next.js、Root Directory: このpackage.jsonのあるフォルダー、Install: `npm ci`、Build: `npm run build`。Node.js 22/24を使用します。
 3. VercelのProduction/Preview環境に `NEXT_PUBLIC_SUPABASE_URL`、`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`、`APP_ORIGIN` を設定します。`APP_ORIGIN` は対象の正確な公開Originです。固定プレビューURLを使う場合もcallback許可を追加します。
@@ -171,4 +196,4 @@ Docker Desktopを使う本物のSupabaseローカル環境で確認する場合�
 6. 実Googleログイン、作者ID一致作品の選択不可、保存・再ログイン復元、テーマ55件、全6部門の確定、管理CSV・一般ユーザー403を確認します。
 7. 本番の投票期間を運営が決めて設定します。確認完了まで受付OFFを維持してください。
 
-この依頼ではVercelの本番デプロイは行っていません。公開可能なソース・ロックファイル・設定を納品します。
+元データ・生成seed・認証情報は公開Gitやデプロイ成果物へ追加しません。DB改名の適用結果と検証範囲は上記の各移行記録を参照してください。

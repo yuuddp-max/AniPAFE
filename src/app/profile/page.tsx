@@ -4,8 +4,12 @@ export const dynamic = "force-dynamic";
 export default async function ProfilePage() {
   const { db, user } = await pageUser();
   const [p, b] = await Promise.all([
-    db.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
-    db.from("ballots").select("status").eq("voter_id", user.id).maybeSingle(),
+    db.from("data_profiles").select("*").eq("user_id", user.id).maybeSingle(),
+    db
+      .from("data_ballot")
+      .select("status")
+      .eq("voter_id", user.id)
+      .maybeSingle(),
   ]);
   if (p.error || b.error) throw new Error("プロフィール取得に失敗しました。");
   const googleName = String(

@@ -8,7 +8,7 @@ const db = createClient(url, process.env.SUPABASE_SECRET_KEY!, {
   auth: { persistSession: false },
 });
 const { data, error } = await db
-  .from("videos")
+  .from("data_mad")
   .select("video_id")
   .eq("is_active", true)
   .is("thumbnail_url", null);
@@ -19,7 +19,7 @@ for (const row of data ?? []) {
   try {
     const thumbnail_url = await fetchThumbnail(row.video_id);
     const { error } = await db
-      .from("videos")
+      .from("data_mad")
       .update({ thumbnail_url })
       .eq("video_id", row.video_id);
     if (error) throw error;

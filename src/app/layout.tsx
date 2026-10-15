@@ -21,12 +21,12 @@ export default async function RootLayout({
   if (auth) {
     const [profile, access] = await Promise.all([
       auth.db
-        .from("profiles")
+        .from("data_profiles")
         .select("display_name")
         .eq("user_id", auth.user.id)
         .maybeSingle(),
       auth.db
-        .from("admin_users")
+        .from("master_admin_users")
         .select("auth_user_id")
         .eq("auth_user_id", auth.user.id)
         .maybeSingle(),

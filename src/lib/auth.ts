@@ -34,7 +34,7 @@ export async function apiUser() {
 export async function apiAdmin() {
   const auth = await apiUser();
   const { data, error } = await auth.db
-    .from("admin_users")
+    .from("master_admin_users")
     .select("auth_user_id")
     .eq("auth_user_id", auth.user.id)
     .maybeSingle();

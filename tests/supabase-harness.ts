@@ -70,12 +70,19 @@ async function prepare() {
 }
 await prepare();
 const tables = new Set([
+  "data_profiles",
   "profiles",
+  "data_mad",
   "videos",
   "award_types",
+  "master_award_types",
+  "data_ballot",
   "ballots",
+  "data_ballots",
   "ballot_entries",
+  "master_poll_settings",
   "poll_settings",
+  "master_admin_users",
   "admin_users",
   "audit_logs",
 ]);

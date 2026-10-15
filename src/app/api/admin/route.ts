@@ -62,7 +62,7 @@ export async function POST(request: Request) {
       });
     else {
       const { data, error } = await db
-        .from("videos")
+        .from("data_mad")
         .select("*")
         .eq("video_id", input.video_id)
         .single();

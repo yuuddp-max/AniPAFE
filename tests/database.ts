@@ -6,7 +6,7 @@ export const U1 = "00000000-0000-4000-8000-000000000001",
   U2 = "00000000-0000-4000-8000-000000000002",
   ADMIN = "00000000-0000-4000-8000-000000000003",
   OTHER = "00000000-0000-4000-8000-000000000004";
-export async function database() {
+export async function database(options: { beforeMigration?: string } = {}) {
   const db = new PGlite();
   await db.exec(`create role anon;create role authenticated;create role service_role bypassrls;create schema auth;
     create table auth.users(id uuid primary key);create table auth.identities(user_id uuid references auth.users,provider text);
@@ -17,13 +17,35 @@ export async function database() {
   const migrations = (await readdir("supabase/migrations"))
     .filter((name) => /^\d+_.*\.sql$/.test(name))
     .sort();
-  for (const name of migrations)
+  if (
+    options.beforeMigration &&
+    !migrations.some((name) => name.endsWith(`_${options.beforeMigration}.sql`))
+  )
+    throw new Error(`Unknown migration boundary: ${options.beforeMigration}`);
+  for (const name of migrations) {
+    if (
+      options.beforeMigration &&
+      name.endsWith(`_${options.beforeMigration}.sql`)
+    )
+      break;
     await db.exec(await readFile(`supabase/migrations/${name}`, "utf8"));
+  }
   const seed = await parseImport(await fixtureCsv(), "videos_seed.csv");
   // Execute the delivered seed verbatim, including escaping and thumbnail updates.
-  await db.exec(await fixtureSeedSql());
+  const seedSql = await fixtureSeedSql();
   await db.exec(
-    `insert into public.admin_users values ('${ADMIN}');update public.poll_settings set starts_at=now()-interval '1 day',ends_at=now()+interval '1 day',is_published=true where id=1;`,
+    options.beforeMigration === "rename_voting_data_tables"
+      ? seedSql.replaceAll("public.data_mad", "public.videos")
+      : seedSql,
+  );
+  const masterTables =
+    (
+      await db.query<{ relation: string | null }>(
+        "select to_regclass('public.master_poll_settings')::text as relation",
+      )
+    ).rows[0].relation !== null;
+  await db.exec(
+    `insert into public.${masterTables ? "master_admin_users" : "admin_users"} values ('${ADMIN}');update public.${masterTables ? "master_poll_settings" : "poll_settings"} set starts_at=now()-interval '1 day',ends_at=now()+interval '1 day',is_published=true where id=1;`,
   );
   return { db, videos: seed.videos };
 }
