@@ -37,6 +37,8 @@ export type TallyRow = TallyWork & {
   award_code: AwardCode;
   award_name: string;
   votes: number;
+  raw_votes: number;
+  creator_voted: boolean | null;
   creator_bonus: 0 | 1 | null;
   points: number;
   max_points: number;
@@ -48,6 +50,7 @@ export type TallyRow = TallyWork & {
   broadcast_seconds: number | null;
 };
 export type TallyScore = TallyWork & {
+  creator_voted: boolean | null;
   ranks: Record<AwardCode, number | null>;
   scores: Record<AwardCode, number>;
   award_count: number;
@@ -222,7 +225,9 @@ export function tally(input: {
         ...work,
         award_code: award.code,
         award_name: award.name,
-        votes: count[award.code],
+        votes: points,
+        raw_votes: count[award.code],
+        creator_voted: creator === null ? null : creator === 1,
         creator_bonus: award.code === "overall" ? creator : 0,
         points,
         max_points:
@@ -303,6 +308,9 @@ export function tally(input: {
       }
       return {
         ...work,
+        creator_voted: Object.hasOwn(bonus, String(work.display_order))
+          ? bonus[work.display_order] === 1
+          : null,
         ranks,
         scores,
         award_count: tallyAwards.filter(
@@ -315,7 +323,7 @@ export function tally(input: {
     (number) => !Object.hasOwn(bonus, String(number)),
   );
   const warnings = [
-    "同じ年度・集計元で投票した投稿者の作品は、ニコニコIDで照合して総合賞だけに各1ポイント加算します。自己投票は得票に含めません。",
+    "同じ年度・集計元で投票した投稿者の作品は、ニコニコIDで照合して総合賞の票数だけに各1票加算します。自己投票は票数に含めません。",
     ...(selfVotes
       ? [
           `ニコニコIDが一致する自己投票${selfVotes}票を集計から除外しました。原本は変更していません。`,
@@ -323,10 +331,10 @@ export function tally(input: {
       : []),
     ...(provisional
       ? [
-          "製作者の投票による総合賞への1ポイント加算は未確認の作品では未加算です。各作品の総合賞は最大1ポイント、同点時の補助合計・順位・スコアも変わる可能性があります。",
+          "投稿者の投票参加が未確認の作品には参加分の1票を加えていません。参加状況が確認できると総合賞の票数・同点時の補助合計・順位・スコアが変わる可能性があります。",
         ]
       : []),
-    "順位は部門得点→補助合計の降順で計算し、同じ値は同順位（1、1、2）です。0点作品は部門順位の対象外です。",
+    "順位は票数→補助合計の降順で計算し、同じ値は同順位（1、1、2）です。0票作品は部門順位の対象外です。",
     "補助合計は総合・選曲・構成・諧謔・クリエイティブの5部門。テーマ賞のみ総合を除きテーマを加えます。",
     `スコアはサンプルの式 (1−相対順位/${denominator})×100。対象は総合70位・テーマ10位・他15位以内、受賞数は総合を除く5部門です。`,
     "放送対象はExcel上の手動指定です。未指定の放送対象・動画時間は推測しません。",
@@ -392,6 +400,7 @@ export function tallyCsvRows(
         "作品番号",
         "作品名",
         "製作者",
+        "投稿者の投票参加",
         ...tallyAwards.map((a) => `${a.name}順位`),
         "受賞数（総合除く）",
         ...tallyAwards.map((a) => `${a.name}スコア`),
@@ -405,6 +414,11 @@ export function tallyCsvRows(
         r.display_order,
         r.title,
         r.author_name,
+        r.creator_voted === null
+          ? "未確認"
+          : r.creator_voted
+            ? "参加済み"
+            : "参加なし",
         ...tallyAwards.map((a) => r.ranks[a.code]),
         r.award_count,
         ...tallyAwards.map((a) => r.scores[a.code]),
@@ -427,9 +441,9 @@ export function tallyCsvRows(
       "テーマ",
       "合作",
       "票数",
-      "製作者加点",
-      "得点（未確認加点を除く）",
-      "得点上限",
+      "元の票数",
+      "投稿者の投票参加",
+      "参加分の票",
       "補助合計",
       "作品対応",
       "放送対象",
@@ -451,9 +465,13 @@ export function tallyCsvRows(
       r.theme,
       r.collaboration,
       r.votes,
+      r.raw_votes,
+      r.creator_voted === null
+        ? "未確認"
+        : r.creator_voted
+          ? "参加済み"
+          : "参加なし",
       r.creator_bonus ?? "未確認",
-      r.points,
-      r.max_points,
       r.total_points,
       r.unmapped ? "未対応" : "対応済み",
       r.broadcast_selected === null

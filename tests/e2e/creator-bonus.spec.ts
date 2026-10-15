@@ -133,7 +133,14 @@ test("投稿者加点：自己投票禁止→下書き除外→確定で総合1�
       (r: { award_code: string; video_id: string }) =>
         r.award_code === "overall" && r.video_id === own.video_id,
     ),
-  ).toMatchObject({ votes: 0, points: 1, max_points: 1, creator_bonus: 1 });
+  ).toMatchObject({
+    votes: 1,
+    raw_votes: 0,
+    points: 1,
+    max_points: 1,
+    creator_bonus: 1,
+    creator_voted: true,
+  });
   expect(
     result.rankings
       .filter((r: { award_code: string }) => r.award_code !== "overall")
@@ -149,7 +156,18 @@ test("投稿者加点：自己投票禁止→下書き除外→確定で総合1�
   await expect(
     panel.getByRole("table", { name: "2026年度 総合賞", exact: true }),
   ).toBeVisible();
-  await panel.getByLabel("補助合計・加点の詳細", { exact: true }).check();
+  await expect(
+    panel.getByRole("columnheader", { name: "得点", exact: true }),
+  ).toHaveCount(0);
+  const desktopOwn = panel
+    .getByRole("table")
+    .locator("tbody tr")
+    .filter({ hasText: own.title });
+  await expect(desktopOwn.locator(".tally-votes")).toHaveText("1");
+  await expect(
+    desktopOwn.getByRole("img", { name: "投票参加済み", exact: true }),
+  ).toHaveText("✓");
+  await panel.getByLabel("補助合計・参加票の詳細", { exact: true }).check();
   const ownRow = panel.getByRole("row").filter({ hasText: own.title });
   await expect(ownRow).toContainText("1");
 
@@ -161,17 +179,54 @@ test("投稿者加点：自己投票禁止→下書き除外→確定で総合1�
     await page.request.get("/api/admin/tally?year=2025&source=historical")
   ).json();
   expect(historical).toMatchObject({
-    ballot_count: 2,
-    selection_count: 2,
-    historical_selection_count: 3,
+    ballot_count: 52,
+    selection_count: 52,
+    historical_selection_count: 53,
     provisional: false,
   });
   expect(
     historical.rankings.find(
       (r: { video_id: string }) => r.video_id === own.video_id,
     ),
-  ).toMatchObject({ votes: 0, points: 1, creator_bonus: 1 });
+  ).toMatchObject({
+    votes: 51,
+    raw_votes: 50,
+    points: 51,
+    creator_bonus: 1,
+    creator_voted: true,
+  });
   expect(historical.warnings.join(" ")).toContain("自己投票1票");
+  // The historical year was added after opening the page: refresh its year options.
+  await page.reload();
+  await panel.getByLabel("集計年度", { exact: true }).selectOption("2025");
+  const historicalRow = panel
+    .getByRole("table")
+    .locator("tbody tr")
+    .filter({ hasText: own.title });
+  await expect(historicalRow.locator(".tally-votes")).toHaveText("51");
+  await expect(
+    historicalRow.getByRole("img", { name: "投票参加済み", exact: true }),
+  ).toHaveText("✓");
+  await mkdir("artifacts/creator-bonus", { recursive: true });
+  await page.screenshot({
+    path: "artifacts/creator-bonus/admin-desktop.png",
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobileOwn = panel
+    .getByRole("list", { name: "総合賞の順位一覧", exact: true })
+    .getByRole("listitem")
+    .filter({ hasText: own.title });
+  await expect(mobileOwn.locator(".tally-mobile-votes")).toHaveText("51票");
+  await expect(
+    mobileOwn.getByRole("img", { name: "投票参加済み", exact: true }),
+  ).toHaveText("✓");
+  await expect(mobileOwn).not.toContainText("得点");
+  await page.screenshot({
+    path: "artifacts/creator-bonus/admin-mobile.png",
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
   const empty = await (
     await page.request.get("/api/admin/tally?year=2025&source=site")
   ).json();

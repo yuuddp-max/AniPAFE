@@ -11,6 +11,21 @@ import { tallyAwards, type AdminTallyResult } from "@/lib/tally";
 import { jst } from "@/lib/validation";
 import { TallyMetrics } from "@/components/tally-overview";
 
+function CreatorParticipation({ voted }: { voted: boolean | null }) {
+  const label =
+    voted === null ? "投票参加未確認" : voted ? "投票参加済み" : "投票参加なし";
+  return (
+    <span
+      className={`tally-participation${voted === true ? " is-participating" : voted === null ? " is-unknown" : ""}`}
+      role="img"
+      aria-label={label}
+      title={label}
+    >
+      {voted === null ? "?" : voted ? "✓" : "—"}
+    </span>
+  );
+}
+
 export function TallyPanel({
   years,
   initialResult,
@@ -215,7 +230,7 @@ export function TallyPanel({
       {!result && !error && (
         <div className="tally-empty" role="status">
           {busy
-            ? "投票明細から得点・順位・スコアを再計算しています…"
+            ? "投票明細から票数・順位・スコアを再計算しています…"
             : "集計結果を読み込んでいます。"}
         </div>
       )}
@@ -233,8 +248,8 @@ export function TallyPanel({
             ：{result.ballot_count}回答／{result.selection_count}
             票／作品選択なしの感想{result.comment_only_count}件。
             {result.provisional
-              ? "製作者加点は未確認のため暫定です。"
-              : "製作者加点を確認済みです。"}
+              ? "投稿者の投票参加に未確認があるため暫定です。"
+              : "投稿者の投票参加を確認済みです。"}
             {result.calculated_at && ` 集計日時：${jst(result.calculated_at)}`}
           </p>
           <TallyMetrics result={result} />
@@ -299,7 +314,7 @@ export function TallyPanel({
                     onChange={(e) => setExpandedColumns(e.target.checked)}
                   />
                   <SlidersHorizontal size={15} aria-hidden="true" />
-                  補助合計・加点の詳細
+                  補助合計・参加票の詳細
                 </label>
               )}
             </div>
@@ -334,6 +349,9 @@ export function TallyPanel({
                 )}
               </div>
             </div>
+            <p className="tally-participation-legend">
+              ✓：投票参加済み　—：参加なし　?：未確認。総合賞の票数は参加分の1票を含みます。
+            </p>
             {result.ballot_count === 0 && (
               <p>この年度・集計元の投票データはありません。</p>
             )}
@@ -356,19 +374,16 @@ export function TallyPanel({
                             No.{String(row.display_order).padStart(3, "0")}
                           </small>
                           <strong>{row.title}</strong>
-                          <span>{row.author_name}</span>
+                          <span>
+                            {row.author_name}{" "}
+                            <CreatorParticipation voted={row.creator_voted} />
+                          </span>
                         </div>
-                        <div className="tally-mobile-points">
+                        <div className="tally-mobile-votes">
                           <strong>
                             {row.votes}
                             <small>票</small>
                           </strong>
-                          <span>
-                            得点{" "}
-                            {row.points === row.max_points
-                              ? row.points
-                              : `${row.points}～${row.max_points}`}
-                          </span>
                         </div>
                       </li>
                     ))}
@@ -402,10 +417,7 @@ export function TallyPanel({
                         <th scope="col" className="tally-numeric">
                           票数
                         </th>
-                        {expandedColumns && <th scope="col">製作者加点</th>}
-                        <th scope="col" className="tally-numeric">
-                          得点
-                        </th>
+                        {expandedColumns && <th scope="col">参加分の票</th>}
                         {expandedColumns && (
                           <th scope="col" className="tally-numeric">
                             補助合計
@@ -431,7 +443,10 @@ export function TallyPanel({
                             <strong>{r.title}</strong>
                             {r.unmapped && <small>作品未対応</small>}
                           </td>
-                          <td className="tally-author-cell">{r.author_name}</td>
+                          <td className="tally-author-cell">
+                            {r.author_name}{" "}
+                            <CreatorParticipation voted={r.creator_voted} />
+                          </td>
                           <td className="tally-numeric tally-votes">
                             {r.votes}
                           </td>
@@ -442,11 +457,6 @@ export function TallyPanel({
                                 : "対象外"}
                             </td>
                           )}
-                          <td className="tally-numeric">
-                            {r.points === r.max_points
-                              ? r.points
-                              : `${r.points}～${r.max_points}`}
-                          </td>
                           {expandedColumns && (
                             <td className="tally-numeric">{r.total_points}</td>
                           )}
@@ -455,7 +465,7 @@ export function TallyPanel({
                       {rankingRows.length === 0 && (
                         <tr>
                           <td
-                            colSpan={expandedColumns ? 8 : 5}
+                            colSpan={expandedColumns ? 7 : 4}
                             className="tally-empty"
                           >
                             {search
@@ -504,7 +514,10 @@ export function TallyPanel({
                           </small>
                           <strong>{r.title}</strong>
                         </td>
-                        <td>{r.author_name}</td>
+                        <td>
+                          {r.author_name}{" "}
+                          <CreatorParticipation voted={r.creator_voted} />
+                        </td>
                         {tallyAwards.map((a) => (
                           <td key={a.code}>{r.ranks[a.code] ?? "圏外"}</td>
                         ))}
@@ -532,7 +545,7 @@ export function TallyPanel({
               計算ルールと集計上の注意
             </summary>
             <p>
-              投票明細から、Excelと同じ計算方法で得点・順位・スコアを再計算しています。
+              投票明細から、Excelと同じ計算方法で票数・順位・スコアを再計算しています。
             </p>
             {result.warnings.map((warning) => (
               <p key={warning}>{warning}</p>

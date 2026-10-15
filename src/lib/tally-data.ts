@@ -12,7 +12,7 @@ import type { Profile } from "./types";
 import { HttpError } from "./auth";
 
 // Bump when tally rules or the stored payload change.
-const calculationVersion = 1;
+const calculationVersion = 2;
 
 export type TallyBallot = {
   id: string;

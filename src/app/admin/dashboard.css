@@ -562,6 +562,33 @@
   min-width: 120px;
   color: #5c6f60;
 }
+.tally-participation {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.5em;
+  height: 1.5em;
+  margin-left: 4px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  vertical-align: middle;
+  background: #eff3ec;
+  color: #607360;
+}
+.tally-participation.is-participating {
+  background: #e4efdf;
+  color: #2d6349;
+}
+.tally-participation.is-unknown {
+  background: #faf2e2;
+  color: #785522;
+}
+.tally-participation-legend {
+  margin: 12px 24px;
+  font-size: 11px;
+  line-height: 1.8;
+  color: #5d7363;
+}
 .tally-votes {
   font-size: 16px;
   font-weight: 700;
@@ -837,25 +864,19 @@
     margin-top: 5px;
     overflow-wrap: anywhere;
   }
-  .tally-mobile-points {
+  .tally-mobile-votes {
     min-width: 50px;
     text-align: right;
     flex-shrink: 0;
   }
-  .tally-mobile-points > strong {
+  .tally-mobile-votes > strong {
     font-size: 20px;
     font-variant-numeric: tabular-nums;
     color: #356349;
   }
-  .tally-mobile-points small {
+  .tally-mobile-votes small {
     font-size: 10px;
     margin-left: 3px;
     font-weight: 400;
-  }
-  .tally-mobile-points > span {
-    display: block;
-    font-size: 9px;
-    color: #6b806e;
-    white-space: nowrap;
   }
 }

@@ -307,12 +307,20 @@ test("Excel集計：権限・原本1206明細のページング・年度独立�
     "201回答／1206票",
   );
   // Results are in the initial HTML, with no client API call or calculate click.
-  expect(await page.request.get("/admin").then((r) => r.text())).toContain(
-    "1206～1207",
-  );
+  const initialHtml = await page.request.get("/admin").then((r) => r.text());
+  expect(
+    initialHtml.includes('class="tally-numeric tally-votes">1206</td>'),
+  ).toBeTruthy();
+  expect(initialHtml.includes("1206～1207")).toBeFalsy();
   await expect(
-    panel.getByRole("cell", { name: "1206～1207", exact: true }),
+    panel.getByRole("cell", { name: "1206", exact: true }),
   ).toBeVisible();
+  await expect(
+    panel.getByRole("img", { name: "投票参加未確認", exact: true }),
+  ).toBeVisible();
+  await expect(
+    panel.getByRole("columnheader", { name: "得点", exact: true }),
+  ).toHaveCount(0);
   await expect(page.locator(".admin-registration > summary")).toContainText(
     "2025年度の登録状況",
   );
@@ -442,11 +450,11 @@ test("集計ダッシュボード：概要グラフの削除・部門切替・�
   await expect(
     panel.getByRole("columnheader", { name: "補助合計", exact: true }),
   ).toHaveCount(0);
-  await panel.getByLabel("補助合計・加点の詳細", { exact: true }).check();
+  await panel.getByLabel("補助合計・参加票の詳細", { exact: true }).check();
   await expect(
     panel.getByRole("columnheader", { name: "補助合計", exact: true }),
   ).toBeVisible();
-  await panel.getByLabel("補助合計・加点の詳細", { exact: true }).uncheck();
+  await panel.getByLabel("補助合計・参加票の詳細", { exact: true }).uncheck();
   for (const award of [
     "選曲賞",
     "構成賞",

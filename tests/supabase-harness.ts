@@ -195,6 +195,21 @@ const server = createServer(async (req, res) => {
           select b.id,2025,'overall',v.video_id,'historical',2,v.display_order,v.title,'選択2','感想2'
           from public.data_ballot b join public.data_mad v on v.year=b.year and v.display_order=1
           where b.year=2025 and b.source_row=2;
+        insert into public.data_ballot(year,status,source,source_row,display_name,nico_user_id,source_timestamp,raw_response)
+          select 2025,'imported','historical',n,'別の投票者','999999991','検証日時','{}'::jsonb from generate_series(4,53) n;
+        insert into public.data_ballots(ballot_id,year,award_code,video_id,source,slot,source_video_number,source_video_label,selection_column,comment_column)
+          select b.id,2025,'overall',v.video_id,'historical',1,v.display_order,v.title,'選択','感想'
+          from public.data_ballot b join public.data_mad v on v.year=b.year and v.display_order=1
+          where b.year=2025 and b.source_row>=4;
+        -- A valid old-version cache must not hide the new vote count/participation fields.
+        insert into public.data_tally_results(year,source,score_denominator,calculation_version,input_revision,result)
+          select 2025,'historical',143,1,r.revision,jsonb_build_object(
+            'year',2025,'source','historical','score_denominator',143,'work_count',2,'ballot_count',52,
+            'selection_count',52,'comment_only_count',0,'historical_ballot_count',52,'historical_selection_count',53,
+            'provisional',false,'warnings','[]'::jsonb,'scores','[]'::jsonb,'details','[]'::jsonb,
+            'rankings',jsonb_build_array(jsonb_build_object('video_id',v.video_id,'votes',50,'points',51,'creator_bonus',1)))
+          from private.tally_input_revisions r cross join public.data_mad v
+          where r.year=2025 and v.year=2025 and v.display_order=1;
       `);
       return send(200, { ok: true });
     }

@@ -85,7 +85,9 @@ test("確認済み0と未確認を区別し、加点1は総合だけに一度適
   const first = result.rankings.find(
     (r) => r.award_code === "overall" && r.display_order === 1,
   )!;
-  assert.equal(first.votes, 1);
+  assert.equal(first.votes, 2);
+  assert.equal(first.raw_votes, 1);
+  assert.equal(first.creator_voted, true);
   assert.equal(first.points, 2);
   assert.equal(first.max_points, 2);
   assert.equal(
@@ -119,8 +121,8 @@ test("投稿者のニコニコIDを正規化して全投稿作品の総合賞だ
       r.total_points,
     ]),
     [
-      [1, 2, 1, 3, 4],
-      [2, 0, 1, 1, 1],
+      [1, 3, 1, 3, 4],
+      [2, 1, 1, 1, 1],
     ],
   );
   assert.equal(
@@ -130,9 +132,54 @@ test("投稿者のニコニコIDを正規化して全投稿作品の総合賞だ
   assert.equal(result.selection_count, 3);
   assert.equal(result.provisional, false);
   assert.equal(
+    result.scores.find((r) => r.display_order === 1)!.creator_voted,
+    true,
+  );
+  assert.equal(
+    result.scores.find((r) => r.display_order === 3)!.creator_voted,
+    false,
+  );
+  assert.equal(
     result.scores.find((r) => r.display_order === 2)!.ranks.overall,
     2,
   );
+});
+
+test("総合50票は参加分を含む51票とし、他部門・未参加・未確認を区別する", () => {
+  const result = tally({
+    year: 2025,
+    source: "historical",
+    ballotCount: 51,
+    works: works.slice(0, 3).map((work, index) => ({
+      ...work,
+      author_nico_user_id: index === 0 ? "123" : index === 1 ? "999" : null,
+    })),
+    entries: [
+      ...votes(1, "overall", 50),
+      ...votes(1, "music", 2),
+      ...votes(2, "overall", 4),
+      ...votes(3, "overall", 1),
+    ],
+    participatingNicoIds: ["000123", "456"],
+  });
+  const overall = result.rankings.filter((r) => r.award_code === "overall");
+  assert.deepEqual(
+    overall.map((r) => [r.votes, r.raw_votes, r.creator_voted]),
+    [
+      [51, 50, true],
+      [4, 4, false],
+      [1, 1, null],
+    ],
+  );
+  const music = result.rankings.find((r) => r.award_code === "music")!;
+  assert.equal(music.votes, 2);
+  assert.equal(music.creator_voted, true);
+  const exported = tallyCsvRows(result, "ranking");
+  const headers = exported[0];
+  assert.ok(headers.every((header) => !String(header).includes("得点")));
+  assert.equal(exported[1][headers.indexOf("票数")], 51);
+  assert.equal(exported[1][headers.indexOf("元の票数")], 50);
+  assert.equal(exported[1][headers.indexOf("投稿者の投票参加")], "参加済み");
 });
 
 test("ID未記入では加点を推測せず、照合済み1点と未確認を区別する", () => {
@@ -150,6 +197,7 @@ test("ID未記入では加点を推測せず、照合済み1点と未確認を�
   const rows = result.rankings;
   assert.equal(rows.find((r) => r.display_order === 1)!.creator_bonus, 1);
   assert.equal(rows.find((r) => r.display_order === 2)!.creator_bonus, null);
+  assert.equal(rows.find((r) => r.display_order === 2)!.creator_voted, null);
   assert.equal(result.provisional, true);
   const empty = tally({
     year: 2025,
@@ -177,7 +225,8 @@ test("過去原本の自己投票を全6賞で除外し、名前が同じ別ID�
   });
   assert.equal(result.selection_count, 6);
   assert.ok(result.warnings.some((w) => w.includes("自己投票6票")));
-  assert.ok(result.rankings.every((r) => r.votes === 1));
+  assert.ok(result.rankings.every((r) => r.raw_votes === 1));
+  assert.ok(result.rankings.every((r) => r.creator_voted === true));
   assert.equal(
     result.rankings.find((r) => r.award_code === "overall")!.points,
     2,
