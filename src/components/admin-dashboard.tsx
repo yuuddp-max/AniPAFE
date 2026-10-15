@@ -3,6 +3,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Ballot, Poll, Profile, Video } from "@/lib/types";
 import { jst } from "@/lib/validation";
+import { TallyPanel } from "@/components/tally-panel";
+import type { TallyResult } from "@/lib/tally";
 type Ranking = {
   award_code: string;
   award_name: string;
@@ -39,6 +41,7 @@ type Preview = {
 };
 export function AdminDashboard({
   report,
+  initialTally,
   poll,
   years,
   videos,
@@ -46,6 +49,7 @@ export function AdminDashboard({
   ballots,
   audit,
 }: {
+  initialTally: TallyResult;
   report: {
     stats: Record<string, number>;
     rankings: Ranking[];
@@ -65,7 +69,7 @@ export function AdminDashboard({
   }[];
 }) {
   const router = useRouter(),
-    [tab, setTab] = useState("ranking"),
+    [tab, setTab] = useState("excel"),
     [award, setAward] = useState("overall"),
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false),
@@ -221,7 +225,9 @@ export function AdminDashboard({
         </details>
       </section>
       <p className="muted">
-        集計対象は確定済み投票のみ。明細・感想は運営者限定です。
+        {tab === "excel"
+          ? "集計結果は運営者限定です。過去フォームの集計は暫定として表示します。"
+          : "集計対象は確定済み投票のみ。明細・感想は運営者限定です。"}
       </p>
       <div className="admin-stats">
         {[
@@ -239,6 +245,7 @@ export function AdminDashboard({
       </div>
       <nav className="admin-tabs" aria-label="管理機能">
         {[
+          ["excel", "集計結果"],
           ["ranking", "集計・明細"],
           ["videos", "作品マスター"],
           ["settings", "年度・投票設定"],
@@ -347,6 +354,12 @@ export function AdminDashboard({
             </table>
           </div>
         </>
+      )}
+      {tab === "excel" && (
+        <TallyPanel
+          years={years.map((y) => y.year)}
+          initialResult={initialTally}
+        />
       )}
       {tab === "videos" && (
         <>

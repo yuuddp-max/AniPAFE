@@ -12,7 +12,8 @@
     "test:e2e": "playwright test",
     "import:preview": "tsx scripts/import-videos.ts",
     "import:apply": "tsx scripts/import-videos.ts --apply",
-    "thumbnails": "tsx scripts/fetch-thumbnails.ts"
+    "thumbnails": "tsx scripts/fetch-thumbnails.ts",
+    "tally": "tsx scripts/tally-votes.ts"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",

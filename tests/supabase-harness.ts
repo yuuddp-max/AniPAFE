@@ -113,6 +113,20 @@ const server = createServer(async (req, res) => {
   }
   try {
     if (url.pathname === "/health") return send(200, { ok: true });
+    if (url.pathname === "/__test/tally-seed" && req.method === "POST") {
+      await fixture.db
+        .exec(`insert into public.master_poll_settings(id,year,title) values(2025,2025,'過去集計テスト');
+        insert into public.data_mad(year,video_id,display_order,title,author_nico_user_id,author_name,watch_url,is_active)
+          select 2025,video_id,display_order,'=Excel集計テスト',author_nico_user_id,author_name,watch_url,is_active
+          from public.data_mad where year=2026 order by display_order limit 1;
+        insert into public.data_ballot(year,status,source,source_row,display_name,source_timestamp,raw_response)
+          select 2025,'imported','historical',n,'原本の回答者','元日時','{}'::jsonb from generate_series(2,202) n;
+        insert into public.data_ballots(ballot_id,year,award_code,video_id,source,slot,source_video_number,source_video_label,selection_column,comment_column)
+          select b.id,2025,'overall',v.video_id,'historical',s,v.display_order,'元作品ラベル','選択','感想'
+          from public.data_ballot b cross join public.data_mad v cross join generate_series(1,6) s
+          where b.year=2025 and v.year=2025;`);
+      return send(200, { ok: true });
+    }
     if (url.pathname === "/__test/reset" && req.method === "POST") {
       // Keep one WASM instance: repeatedly disposing PGlite can crash Node's Windows JIT.
       // Reset all test data, including years added by the previous browser test.
@@ -120,6 +134,7 @@ const server = createServer(async (req, res) => {
         await tx.exec(`delete from public.data_ballots; delete from public.data_ballot;
           delete from public.data_profiles; delete from public.audit_logs; delete from public.data_mad;
           update public.master_event_settings set target_year=2026 where id=1;
+          delete from public.master_award_types where year<>2026;
           delete from public.master_poll_settings where year<>2026;
           update public.master_poll_settings set title='AniPAFE2026 人気投票',master_revision=0,
             starts_at=now()-interval '1 day',ends_at=now()+interval '1 day',is_published=true,results_public=false where year=2026;`);
