@@ -56,8 +56,8 @@ export default async function RootLayout({
               A<span>✦</span>
             </span>
             <span>
-              AniPAFE<span className="brand-year">{poll.year}</span>
-              <small>ANIME MAD FESTIVAL</small>
+              AniPAFE
+              <small>AMV/MAD FESTIVAL in JAPAN</small>
             </span>
           </Link>
           <UserNav
