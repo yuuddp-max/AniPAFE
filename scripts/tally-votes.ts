@@ -20,7 +20,7 @@ const { values } = parseArgs({
 });
 if (values.help) {
   console.log(
-    'npm run tally -- --year 2025 --votes <converted.json> --videos <videos.json> --out <出力フォルダ> [--reference <集計Excel.xlsx>] [--bonus <確認済み加点.json>] [--denominator 143]\n過去フォーム変換JSONをローカルで集計します。ネットワーク接続・DB書込はありません。加点JSONは作品番号をキーとする0/1（例 {"33":1,"13":0}）、省略は未確認です。',
+    'npm run tally -- --year 2025 --votes <converted.json> --videos <videos.json> --out <出力フォルダ> [--reference <集計Excel.xlsx>] [--bonus <確認済み加点.json>] [--denominator 143]\n過去フォーム変換JSONをローカルで集計します。ネットワーク接続・DB書込はありません。作品のauthor_nico_user_idと回答のnico_user_idを照合して総合賞だけに各1点加算し、自己投票は除外します。ID不足は未確認です。加点JSONは作品番号をキーとする0/1（例 {"33":1,"13":0}）の手動指定です。',
   );
 } else {
   const args = z
@@ -39,6 +39,7 @@ if (values.help) {
     video_id: z.string().nullable(),
     title: z.string(),
     author_name: z.string(),
+    author_nico_user_id: z.string().nullable().optional(),
     theme: z.string().nullable().optional(),
   });
   const works = z.array(workSchema).parse(await readJson(args.videos));
@@ -48,6 +49,7 @@ if (values.help) {
         z.object({
           source_row: z.number().int().min(2),
           year: z.number().int(),
+          nico_user_id: z.string().nullable().optional(),
         }),
       ),
       entries: z.array(
@@ -63,6 +65,9 @@ if (values.help) {
     })
     .parse(await readJson(args.votes));
   const rows = new Set(raw.ballots.map((b) => b.source_row));
+  const ballotIdentities = new Map(
+    raw.ballots.map((b) => [b.source_row, b.nico_user_id]),
+  );
   if (
     rows.size !== raw.ballots.length ||
     raw.ballots.some((b) => b.year !== args.year) ||
@@ -99,7 +104,11 @@ if (values.help) {
     source: "historical",
     ballotCount: raw.ballots.length,
     works,
-    entries: raw.entries,
+    entries: raw.entries.map((entry) => ({
+      ...entry,
+      voter_nico_user_id: ballotIdentities.get(entry.source_row),
+    })),
+    participatingNicoIds: raw.ballots.map((b) => b.nico_user_id),
     creatorBonus: bonus,
     scoreDenominator: args.denominator,
   });

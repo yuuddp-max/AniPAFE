@@ -1,5 +1,5 @@
 import type { AwardCode } from "./types";
-import { jst } from "./validation";
+import { jst, normalizeNicoId } from "./validation";
 
 export const tallyAwards: {
   code: AwardCode;
@@ -18,6 +18,7 @@ export type TallyWork = {
   video_id: string | null;
   title: string;
   author_name: string;
+  author_nico_user_id?: string | null;
   theme?: string | null;
   duration_seconds?: number | null;
   collaboration?: string | null;
@@ -29,6 +30,7 @@ export type TallyEntry = {
   video_id: string | null;
   source_video_number?: number | null;
   source_video_label?: string | null;
+  voter_nico_user_id?: string | null;
 };
 export type TallyRow = TallyWork & {
   unmapped: boolean;
@@ -88,7 +90,12 @@ const mainAwards: AwardCode[] = [
 ];
 const broadcastOrder: AwardCode[] = [...mainAwards, "theme"];
 
-/** Pure calculation: no identity inference, writes, or publication. */
+const nicoIdentity = (value?: string | null) =>
+  value != null && /^[0-9]{1,30}$/.test(value.trim())
+    ? normalizeNicoId(value)
+    : null;
+
+/** Pure calculation: matches numeric Nico IDs only, never names. */
 export function tally(input: {
   year: number;
   source: string;
@@ -96,6 +103,7 @@ export function tally(input: {
   works: TallyWork[];
   entries: TallyEntry[];
   creatorBonus?: Record<string, 0 | 1>;
+  participatingNicoIds?: (string | null | undefined)[];
   scoreDenominator?: number;
 }): TallyResult {
   const denominator = input.scoreDenominator ?? 143;
@@ -129,7 +137,8 @@ export function tally(input: {
       number
     >;
   let selections = 0,
-    commentOnly = 0;
+    commentOnly = 0,
+    selfVotes = 0;
   for (const entry of input.entries) {
     if (entry.year !== input.year)
       throw new Error("別年度の投票明細が含まれています。");
@@ -159,12 +168,28 @@ export function tally(input: {
         unmapped: true,
       });
     }
+    const author = nicoIdentity(works.get(number)?.author_nico_user_id);
+    if (author !== null && author === nicoIdentity(entry.voter_nico_user_id)) {
+      selfVotes++;
+      continue;
+    }
     const count = counts.get(number) ?? emptyCounts();
     count[entry.award_code as AwardCode]++;
     counts.set(number, count);
     selections++;
   }
-  const bonus = input.creatorBonus ?? {};
+  const bonus: Record<string, 0 | 1> = Object.create(null);
+  if (input.participatingNicoIds !== undefined) {
+    const identities = input.participatingNicoIds.map(nicoIdentity);
+    const participants = new Set(identities.filter((id) => id !== null));
+    const complete = identities.every((id) => id !== null);
+    for (const [number, work] of works) {
+      const author = nicoIdentity(work.author_nico_user_id);
+      if (author !== null && participants.has(author)) bonus[number] = 1;
+      else if (author !== null && complete) bonus[number] = 0;
+    }
+  }
+  Object.assign(bonus, input.creatorBonus);
   for (const [number, value] of Object.entries(bonus)) {
     if (
       !/^[1-9]\d*$/.test(number) ||
@@ -196,7 +221,7 @@ export function tally(input: {
         award_code: award.code,
         award_name: award.name,
         votes: count[award.code],
-        creator_bonus: creator,
+        creator_bonus: award.code === "overall" ? creator : 0,
         points,
         max_points:
           points + (award.code === "overall" && creator === null ? 1 : 0),
@@ -288,6 +313,12 @@ export function tally(input: {
     (number) => !Object.hasOwn(bonus, String(number)),
   );
   const warnings = [
+    "同じ年度・集計元で投票した投稿者の作品は、ニコニコIDで照合して総合賞だけに各1ポイント加算します。自己投票は得票に含めません。",
+    ...(selfVotes
+      ? [
+          `ニコニコIDが一致する自己投票${selfVotes}票を集計から除外しました。原本は変更していません。`,
+        ]
+      : []),
     ...(provisional
       ? [
           "製作者の投票による総合賞への1ポイント加算は未確認の作品では未加算です。各作品の総合賞は最大1ポイント、同点時の補助合計・順位・スコアも変わる可能性があります。",

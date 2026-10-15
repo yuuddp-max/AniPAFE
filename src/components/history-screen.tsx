@@ -180,18 +180,25 @@ export function HistoryScreen({ data }: { data: VoteHistory }) {
                       </select>
                     </label>
                     <p className="muted">
-                      確定票のみ集計。同得票は同順位です。
+                      確定票のみ集計。投稿者の投票で総合賞に1ポイント加算し、同得点は同順位です。
                     </p>
                   </div>
                   {rankings.length ? (
-                    <div className="table-scroll">
-                      <table>
+                    <div
+                      className="table-scroll"
+                      role="region"
+                      aria-label="公開結果（横スクロール可能）"
+                      tabIndex={0}
+                    >
+                      <table className="history-results-table">
                         <thead>
                           <tr>
                             <th>順位</th>
                             <th>作品</th>
                             <th>投稿者</th>
                             <th>得票数</th>
+                            <th>投稿者加点</th>
+                            <th>得点</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -218,6 +225,8 @@ export function HistoryScreen({ data }: { data: VoteHistory }) {
                                 <td>
                                   <strong>{r.votes}</strong> 票
                                 </td>
+                                <td>{r.creator_bonus ?? 0}</td>
+                                <td>{r.points ?? r.votes}</td>
                               </tr>
                             ))}
                         </tbody>

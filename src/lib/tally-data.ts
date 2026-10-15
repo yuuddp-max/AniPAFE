@@ -58,9 +58,28 @@ export async function loadTally(
       )
       .map((b) => [b.id, b]),
   );
-  const selectedEntries = entries.filter(
-    (e) => selectedBallots.has(e.ballot_id) && e.source === actualSource,
-  );
+  const profiles =
+    actualSource === "site"
+      ? await adminRows<Profile>(db, "data_profiles")
+      : [];
+  const profileMap = new Map(profiles.map((p) => [p.user_id, p]));
+  const identity = (b: TallyBallot) =>
+    actualSource === "site"
+      ? b.voter_id
+        ? profileMap.get(b.voter_id)?.nico_user_id
+        : null
+      : b.nico_user_id;
+  const selectedEntries = entries
+    .filter(
+      (e) =>
+        e.year === year &&
+        selectedBallots.has(e.ballot_id) &&
+        e.source === actualSource,
+    )
+    .map((e) => ({
+      ...e,
+      voter_nico_user_id: identity(selectedBallots.get(e.ballot_id)!),
+    }));
   const result: AdminTallyResult = {
     ...tally({
       year,
@@ -68,6 +87,7 @@ export async function loadTally(
       ballotCount: selectedBallots.size,
       works,
       entries: selectedEntries,
+      participatingNicoIds: [...selectedBallots.values()].map(identity),
       scoreDenominator,
     }),
     historical_ballot_count: historical.length,
@@ -82,11 +102,6 @@ export async function loadTally(
       (e.video_id != null || e.source_video_number != null),
   ).length;
   if (includeDetails) {
-    const profiles =
-      actualSource === "site"
-        ? await adminRows<Profile>(db, "data_profiles")
-        : [];
-    const profileMap = new Map(profiles.map((p) => [p.user_id, p]));
     const videos = new Map(works.map((w) => [w.video_id, w]));
     result.details = selectedEntries.map((e) => {
       const b = selectedBallots.get(e.ballot_id)!;

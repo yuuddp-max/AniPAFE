@@ -79,6 +79,8 @@ export type Ranking = {
   title: string;
   author_name: string;
   votes: number;
+  creator_bonus?: number;
+  points?: number;
   rank: number;
 };
 export type HistoryYear = {

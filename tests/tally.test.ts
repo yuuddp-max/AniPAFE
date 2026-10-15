@@ -96,6 +96,98 @@ test("確認済み0と未確認を区別し、加点1は総合だけに一度適
   const zeroVotes = calculate([], { "4": 1 });
   assert.equal(zeroVotes.rankings[0].points, 1);
 });
+
+test("投稿者のニコニコIDを正規化して全投稿作品の総合賞だけに1点加算する", () => {
+  const result = tally({
+    year: 2025,
+    source: "site",
+    ballotCount: 3,
+    works: works.map((w) => ({
+      ...w,
+      author_nico_user_id: w.display_order <= 2 ? "000123" : "456",
+    })),
+    entries: [...votes(1, "overall", 2), ...votes(1, "music", 1)],
+    participatingNicoIds: ["123", "000123", "789"],
+  });
+  const rows = result.rankings.filter((r) => r.award_code === "overall");
+  assert.deepEqual(
+    rows.map((r) => [
+      r.display_order,
+      r.votes,
+      r.creator_bonus,
+      r.points,
+      r.total_points,
+    ]),
+    [
+      [1, 2, 1, 3, 4],
+      [2, 0, 1, 1, 1],
+    ],
+  );
+  assert.equal(
+    result.rankings.find((r) => r.award_code === "music")!.points,
+    1,
+  );
+  assert.equal(result.selection_count, 3);
+  assert.equal(result.provisional, false);
+  assert.equal(
+    result.scores.find((r) => r.display_order === 2)!.ranks.overall,
+    2,
+  );
+});
+
+test("ID未記入では加点を推測せず、照合済み1点と未確認を区別する", () => {
+  const result = tally({
+    year: 2025,
+    source: "historical",
+    ballotCount: 3,
+    works: works.map((w) => ({
+      ...w,
+      author_nico_user_id: w.display_order === 1 ? "123" : "456",
+    })),
+    entries: [...votes(1, "overall", 1), ...votes(2, "overall", 1)],
+    participatingNicoIds: ["000123", null, "invalid"],
+  });
+  const rows = result.rankings;
+  assert.equal(rows.find((r) => r.display_order === 1)!.creator_bonus, 1);
+  assert.equal(rows.find((r) => r.display_order === 2)!.creator_bonus, null);
+  assert.equal(result.provisional, true);
+  const empty = tally({
+    year: 2025,
+    source: "site",
+    ballotCount: 0,
+    works: [{ ...works[0], author_nico_user_id: "123" }],
+    entries: [],
+    participatingNicoIds: [],
+  });
+  assert.deepEqual(empty.rankings, []);
+  assert.equal(empty.provisional, false);
+});
+
+test("過去原本の自己投票を全6賞で除外し、名前が同じ別IDの票は残す", () => {
+  const result = tally({
+    year: 2025,
+    source: "historical",
+    ballotCount: 2,
+    works: [{ ...works[0], author_nico_user_id: "123" }],
+    entries: tallyAwards.flatMap((a) => [
+      { ...votes(1, a.code, 1)[0], voter_nico_user_id: "000123" },
+      { ...votes(1, a.code, 1)[0], voter_nico_user_id: "456" },
+    ]),
+    participatingNicoIds: ["123", "456"],
+  });
+  assert.equal(result.selection_count, 6);
+  assert.ok(result.warnings.some((w) => w.includes("自己投票6票")));
+  assert.ok(result.rankings.every((r) => r.votes === 1));
+  assert.equal(
+    result.rankings.find((r) => r.award_code === "overall")!.points,
+    2,
+  );
+  assert.ok(
+    result.rankings
+      .filter((r) => r.award_code !== "overall")
+      .every((r) => r.points === 1),
+  );
+});
 test("Excelなしで投票明細の変更から得点・同点順位・スコアを再計算する", () => {
   const entries = [
     ...votes(1, "overall", 2),

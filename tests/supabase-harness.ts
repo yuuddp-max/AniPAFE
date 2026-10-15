@@ -153,6 +153,29 @@ const server = createServer(async (req, res) => {
         `);
       return send(200, { ok: true });
     }
+    if (
+      url.pathname === "/__test/creator-bonus-seed" &&
+      req.method === "POST"
+    ) {
+      await fixture.db.exec(`
+        insert into public.master_poll_settings(id,year,title) values(2025,2025,'投稿者加点検証');
+        insert into public.data_mad(year,video_id,display_order,title,author_nico_user_id,author_name,watch_url,is_active,theme)
+          select 2025,video_id,display_order,title,author_nico_user_id,author_name,watch_url,is_active,theme
+          from public.data_mad where year=2026 and display_order<=2;
+        insert into public.data_ballot(year,status,source,source_row,display_name,nico_user_id,source_timestamp,raw_response)
+          select 2025,'imported','historical',n,'同じ投稿者の原本回答','350396','検証日時','{}'::jsonb
+          from generate_series(2,3) n;
+        insert into public.data_ballots(ballot_id,year,award_code,video_id,source,slot,source_video_number,source_video_label,selection_column,comment_column)
+          select b.id,2025,'overall',v.video_id,'historical',1,v.display_order,v.title,'選択','感想'
+          from public.data_ballot b join public.data_mad v on v.year=b.year and v.display_order=2
+          where b.year=2025;
+        insert into public.data_ballots(ballot_id,year,award_code,video_id,source,slot,source_video_number,source_video_label,selection_column,comment_column)
+          select b.id,2025,'overall',v.video_id,'historical',2,v.display_order,v.title,'選択2','感想2'
+          from public.data_ballot b join public.data_mad v on v.year=b.year and v.display_order=1
+          where b.year=2025 and b.source_row=2;
+      `);
+      return send(200, { ok: true });
+    }
     if (url.pathname === "/__test/tally-seed" && req.method === "POST") {
       await fixture.db
         .exec(`insert into public.master_poll_settings(id,year,title) values(2025,2025,'過去集計テスト');
