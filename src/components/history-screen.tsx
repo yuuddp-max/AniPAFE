@@ -19,6 +19,7 @@ export function HistoryScreen({ data }: { data: VoteHistory }) {
           <p className="muted">
             あの年、心に残った作品と、あなたの一票を振り返る。
           </p>
+          <p className="notice">現在データ整理中（工事中）</p>
         </div>
         <Link className="button secondary small" href="/vote/overall">
           現在の投票画面へ →
