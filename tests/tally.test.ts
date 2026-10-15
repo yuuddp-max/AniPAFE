@@ -96,6 +96,48 @@ test("確認済み0と未確認を区別し、加点1は総合だけに一度適
   const zeroVotes = calculate([], { "4": 1 });
   assert.equal(zeroVotes.rankings[0].points, 1);
 });
+test("Excelなしで投票明細の変更から得点・同点順位・スコアを再計算する", () => {
+  const entries = [
+    ...votes(1, "overall", 2),
+    ...votes(2, "overall", 1),
+    ...votes(2, "creative", 1),
+  ];
+  const before = calculate(entries);
+  const tied = calculate([...entries, ...votes(2, "overall", 1)]);
+  const after = calculate([...entries, ...votes(2, "overall", 2)]);
+  const overall = (result: ReturnType<typeof calculate>) =>
+    result.rankings
+      .filter((r) => r.award_code === "overall")
+      .map((r) => [
+        r.display_order,
+        r.points,
+        r.total_points,
+        r.absolute_rank,
+        r.relative_rank,
+      ]);
+  assert.deepEqual(overall(before), [
+    [1, 2, 2, 1, 1],
+    [2, 1, 2, 2, 2],
+  ]);
+  assert.deepEqual(overall(tied), [
+    [2, 2, 3, 1, 1],
+    [1, 2, 2, 1, 2],
+  ]);
+  assert.deepEqual(overall(after), [
+    [2, 3, 4, 1, 1],
+    [1, 2, 2, 2, 2],
+  ]);
+  const workTwo = (result: ReturnType<typeof calculate>) =>
+    result.scores.find((r) => r.display_order === 2)!;
+  assert.ok(Math.abs(workTwo(before).score - (2 - 3 / 143) * 100) < 1e-9);
+  assert.ok(Math.abs(workTwo(after).score - 2 * (1 - 1 / 143) * 100) < 1e-9);
+  assert.deepEqual(
+    [before.selection_count, tied.selection_count, after.selection_count],
+    [4, 5, 6],
+  );
+  assert.equal(entries.length, 4);
+  assert.deepEqual(calculate(entries), before);
+});
 test("作品未対応・重複選択を省略せず、感想のみは票に数えない", () => {
   const result = calculate([
     {
