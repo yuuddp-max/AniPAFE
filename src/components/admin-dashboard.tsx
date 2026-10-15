@@ -124,8 +124,13 @@ export function AdminDashboard({
   }
   return (
     <>
-      <span className="eyebrow">ORGANIZER DASHBOARD</span>
-      <h1>運営管理</h1>
+      <header className="admin-dashboard-heading">
+        <div>
+          <span className="eyebrow">ORGANIZER DASHBOARD</span>
+          <h1>運営管理</h1>
+        </div>
+        <span className="admin-private-label">運営者限定</span>
+      </header>
       <section className="admin-year-bar" aria-label="対象年度の管理">
         <div>
           <strong>対象年度：{poll.year}年度</strong>
@@ -203,32 +208,40 @@ export function AdminDashboard({
           </form>
         </details>
       </section>
-      <p className="muted">
-        集計・明細は運営者限定です。過去フォームの回答は暫定集計、サイトの投票は確定済みのみを集計します。
-      </p>
-      <p className="muted">{poll.year}年度の登録状況</p>
-      <div className="admin-stats">
-        {[
-          ["videos", "有効作品"],
-          ["themed", "テーマ対象"],
-          ["google_users", "Google登録者"],
-          ["drafts", "サイト下書き"],
-          ["submitted", "サイト確定投票者"],
-          ["historical_ballots", "過去フォーム回答"],
-          ["historical_votes", "過去フォーム票数"],
-        ].map(([key, label]) => (
-          <div key={key}>
-            <span>{label}</span>
-            <strong>
-              {key === "historical_ballots"
-                ? initialTally.historical_ballot_count
-                : key === "historical_votes"
-                  ? initialTally.historical_selection_count
-                  : report.stats[key]}
-            </strong>
-          </div>
-        ))}
-      </div>
+      <details className="admin-registration">
+        <summary>
+          {poll.year}年度の登録状況
+          <span>
+            有効作品 {report.stats.videos}件 · Google登録者{" "}
+            {report.stats.google_users}人
+          </span>
+        </summary>
+        <div className="admin-stats">
+          {[
+            ["videos", "有効作品"],
+            ["themed", "テーマ対象"],
+            ["google_users", "Google登録者"],
+            ["drafts", "サイト下書き"],
+            ["submitted", "サイト確定投票者"],
+            ["historical_ballots", "過去フォーム回答"],
+            ["historical_votes", "過去フォーム票数"],
+          ].map(([key, label]) => (
+            <div key={key}>
+              <span>{label}</span>
+              <strong>
+                {key === "historical_ballots"
+                  ? initialTally.historical_ballot_count
+                  : key === "historical_votes"
+                    ? initialTally.historical_selection_count
+                    : report.stats[key]}
+              </strong>
+            </div>
+          ))}
+        </div>
+        <p className="muted">
+          過去フォームは暫定集計、サイト投票は確定済みのみを集計します。
+        </p>
+      </details>
       <nav className="admin-tabs" aria-label="管理機能">
         {[
           ["excel", "集計結果"],

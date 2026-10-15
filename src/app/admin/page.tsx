@@ -5,6 +5,7 @@ import { adminRows } from "@/lib/admin-data";
 import type { Profile, Ballot } from "@/lib/types";
 import { currentPoll } from "@/lib/poll";
 import { loadTally } from "@/lib/tally-data";
+import "./dashboard.css";
 export const dynamic = "force-dynamic";
 export default async function AdminPage() {
   const { db, user } = await pageUser();

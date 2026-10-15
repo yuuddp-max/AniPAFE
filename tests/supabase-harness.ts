@@ -113,6 +113,26 @@ const server = createServer(async (req, res) => {
   }
   try {
     if (url.pathname === "/health") return send(200, { ok: true });
+    if (url.pathname === "/__test/dashboard-seed" && req.method === "POST") {
+      await fixture.db.exec(`
+          insert into public.master_poll_settings(id,year,title) values(2025,2025,'AniPAFE2025 デザイン検証');
+          insert into public.data_mad(year,video_id,display_order,title,author_nico_user_id,author_name,watch_url,is_active,theme)
+            select 2025,video_id,display_order,
+              (array['【MAD】夜明けのフィルム ― 物語は、ここからはじまる','【静止画MAD】駆け抜ける、その先へ','アオの記憶 / Blue Memories','【MAD】星をつなぐ旅','春風とエンドロール','光のなかで、もう一度','日々を編む ― いくつもの小さな物語','きみと見つけた世界','雨上がりのシネマ','透明な季節','遠い空に手をのばして','終わらないフィルム'])[display_order],
+              author_nico_user_id,'検証用製作者 '||display_order,watch_url,is_active,'検証テーマ'
+            from public.data_mad where year=2026 and display_order between 1 and 12;
+          insert into public.data_ballot(year,status,source,source_row,display_name,source_timestamp,raw_response)
+            select 2025,'imported','historical',n,'検証用投票者 '||n,'検証日時','{}'::jsonb from generate_series(2,31) n;
+          insert into public.data_ballots(ballot_id,year,award_code,video_id,source,slot,source_video_number,source_video_label,selection_column,comment_column,comment)
+            select b.id,2025,a.code,v.video_id,'historical',1,v.display_order,v.title,'選択','感想','気持ちが伝わる、素敵な作品でした。'
+            from public.data_ballot b
+            cross join (values ('overall',30),('music',26),('composition',22),('humor',18),('creative',14),('theme',10)) a(code,limit_votes)
+            join public.data_mad v on v.year=2025 and v.display_order=1+(b.source_row-2)/4
+            where b.year=2025 and b.source_row-1<=a.limit_votes;
+          update public.master_event_settings set target_year=2025 where id=1;
+        `);
+      return send(200, { ok: true });
+    }
     if (url.pathname === "/__test/tally-seed" && req.method === "POST") {
       await fixture.db
         .exec(`insert into public.master_poll_settings(id,year,title) values(2025,2025,'過去集計テスト');

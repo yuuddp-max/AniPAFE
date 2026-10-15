@@ -192,7 +192,10 @@ test("Excel集計：権限・原本1206明細のページング・年度独立�
   expect(detailExport.ok()).toBeTruthy();
   expect(await detailExport.text()).toBe(await oldDetails.text());
   await page.getByRole("button", { name: "集計結果", exact: true }).click();
-  await panel.getByLabel("表示内容").selectOption("score");
+  await panel
+    .getByRole("group", { name: "表示内容", exact: true })
+    .getByRole("button", { name: "スコア計算", exact: true })
+    .click();
   await expect(panel.locator("caption")).toContainText("分母143");
   await expect(
     panel.getByRole("cell", { name: "99.301", exact: true }),
@@ -234,4 +237,163 @@ test("Excel集計：権限・原本1206明細のページング・年度独立�
   } finally {
     await reader.close();
   }
+});
+
+test("集計ダッシュボード：部門連動・検索・詳細列・スコア・レスポンシブ表示", async ({
+  page,
+  context,
+  request,
+}) => {
+  await login(context, request, "admin");
+  const seeded = await request.post(
+    "http://127.0.0.1:54329/__test/dashboard-seed",
+  );
+  expect(seeded.ok(), await seeded.text()).toBeTruthy();
+  await page.setViewportSize({ width: 1440, height: 1100 });
+  await page.goto("/admin");
+  const panel = page.getByRole("region", {
+    name: "Excel方式の集計",
+    exact: true,
+  });
+  await expect(panel.getByLabel("集計結果の概要")).toContainText(
+    "30回答／120票",
+  );
+  const metrics = panel.getByLabel("投票集計サマリー", { exact: true });
+  await expect(
+    metrics.locator("article").filter({ hasText: "総投票数" }),
+  ).toContainText("120票");
+  await expect(
+    metrics.locator("article").filter({ hasText: "得票作品数" }),
+  ).toContainText("8作品");
+  await expect(
+    panel.getByLabel("総合賞の上位3作品").locator("article"),
+  ).toHaveCount(3);
+  await expect(
+    panel
+      .getByRole("region", { name: "総合賞の得票グラフ", exact: true })
+      .locator("li"),
+  ).toHaveCount(8);
+  await expect(
+    panel.getByRole("columnheader", { name: "補助合計", exact: true }),
+  ).toHaveCount(0);
+  await panel.getByLabel("補助合計・加点の詳細", { exact: true }).check();
+  await expect(
+    panel.getByRole("columnheader", { name: "補助合計", exact: true }),
+  ).toBeVisible();
+  await panel.getByLabel("補助合計・加点の詳細", { exact: true }).uncheck();
+  for (const award of [
+    "選曲賞",
+    "構成賞",
+    "諧謔賞",
+    "クリエイティブ賞",
+    "テーマ賞",
+    "総合賞",
+  ]) {
+    await panel
+      .getByRole("group", { name: "ハイライトの部門", exact: true })
+      .getByRole("button", { name: award, exact: true })
+      .click();
+    await expect(
+      panel.getByRole("table", {
+        name: `2025年度 ${award}（暫定）`,
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(
+      panel.getByRole("region", { name: `${award}の得票グラフ`, exact: true }),
+    ).toBeVisible();
+    await expect(panel.getByLabel(`${award}の上位3作品`)).toBeVisible();
+  }
+  await panel
+    .getByRole("region", { name: "部門別の投票数", exact: true })
+    .getByRole("button", { name: "選曲賞 26票", exact: true })
+    .click();
+  await expect(panel.getByLabel("Excel集計部門", { exact: true })).toHaveValue(
+    "music",
+  );
+  const search = panel.getByRole("searchbox", {
+    name: "作品・製作者を検索",
+    exact: true,
+  });
+  await search.fill("Blue Memories");
+  const table = panel.getByRole("table");
+  await expect(table.locator("tbody tr")).toHaveCount(1);
+  await expect(table).toContainText("アオの記憶");
+  await expect(metrics).toContainText("120");
+  await search.fill("一致しない作品");
+  await expect(table).toContainText("検索条件に一致する作品はありません。");
+  await search.fill("");
+  await panel
+    .getByLabel("Excel集計部門", { exact: true })
+    .selectOption("overall");
+  await mkdir("artifacts/dashboard-ui", { recursive: true });
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({
+    path: "artifacts/dashboard-ui/desktop.png",
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 1440, height: 1250 });
+  await page.evaluate(() =>
+    window.scrollTo(
+      0,
+      document.querySelector(".tally-dashboard")!.getBoundingClientRect().top +
+        window.scrollY -
+        20,
+    ),
+  );
+  await page.screenshot({ path: "artifacts/dashboard-ui/overview.png" });
+  await panel
+    .getByRole("group", { name: "表示内容", exact: true })
+    .getByRole("button", { name: "スコア計算", exact: true })
+    .click();
+  const scores = await panel
+    .getByRole("table")
+    .locator("tbody tr")
+    .allTextContents();
+  expect(scores).toHaveLength(12);
+  const values = await panel
+    .getByRole("table")
+    .locator("tbody tr td:last-child")
+    .allTextContents();
+  expect(values.map(Number)).toEqual(
+    values.map(Number).toSorted((a, b) => b - a),
+  );
+  await panel
+    .getByRole("group", { name: "表示内容", exact: true })
+    .getByRole("button", { name: "部門順位", exact: true })
+    .click();
+  for (const width of [1024, 768, 390, 320]) {
+    await page.setViewportSize({ width, height: 844 });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+      `viewport ${width}`,
+    ).toBeTruthy();
+    await expect(
+      panel.getByRole("heading", { name: "2025年度の集計結果", exact: true }),
+    ).toBeVisible();
+    if (width === 390) {
+      await expect(
+        panel
+          .getByRole("list", { name: "総合賞の順位一覧", exact: true })
+          .getByRole("listitem"),
+      ).toHaveCount(8);
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.screenshot({
+        path: "artifacts/dashboard-ui/mobile.png",
+        fullPage: true,
+      });
+    }
+  }
+  await panel.getByLabel("集計元", { exact: true }).selectOption("site");
+  await panel
+    .getByRole("button", { name: "Excel方式で集計", exact: true })
+    .click();
+  await expect(panel.getByLabel("集計結果の概要")).toContainText("0回答／0票");
+  await expect(metrics).toContainText("0作品");
+  await expect(panel.getByLabel("総合賞の上位3作品")).toHaveCount(0);
+  await expect(
+    panel.getByRole("list", { name: "総合賞の順位一覧", exact: true }),
+  ).toContainText("この部門の投票データはありません。");
 });
