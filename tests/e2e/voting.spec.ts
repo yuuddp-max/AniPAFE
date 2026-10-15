@@ -362,6 +362,151 @@ test("感想付きの選択解除は警告・キャンセルで保存内容保�
   await expect(selected).toHaveCount(0);
 });
 
+test("他の賞の目印・賞名の開閉・カード寸法固定・再生画面の外部リンク", async ({
+  page,
+  context,
+  request,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.route("https://embed.nicovideo.jp/**", (route) =>
+    route.fulfill({ contentType: "text/html", body: "<p>再生画面の検証</p>" }),
+  );
+  await login(context, request);
+  await page.goto("/profile");
+  await page.getByLabel("ニコニコユーザーID", { exact: false }).fill("350396");
+  await page.getByRole("button", { name: "プロフィールを保存" }).click();
+  await page.getByRole("link", { name: "投票へ進む" }).click();
+  const title = await page.locator(".video-card h3").nth(1).innerText();
+  const card = page.locator(".video-card").filter({
+    has: page.getByRole("heading", { name: title, exact: true }),
+  });
+  const select = card.locator(".select-button");
+  const marker = card.locator(".other-awards-trigger");
+  const panel = card.getByRole("region", {
+    name: `${title}をほかに選択中の賞`,
+  });
+  const saved = page.getByText("✓ 下書きを保存済み", { exact: true });
+  async function visitAward(code: string) {
+    const names: Record<string, string> = {
+      overall: "総合賞",
+      music: "選曲賞",
+      composition: "構成賞",
+      creative: "クリエイティブ賞",
+      humor: "諧謔賞",
+      theme: "テーマ賞",
+    };
+    await page.locator(`.award-tabs a[href='/vote/${code}']`).click();
+    await expect(
+      page.getByRole("heading", { name: new RegExp(`^${names[code]}`) }),
+    ).toBeVisible();
+  }
+  async function dimensions() {
+    return card.evaluate((element) => {
+      const { width, height } = element.getBoundingClientRect();
+      return {
+        width: Math.round(width * 100) / 100,
+        height: Math.round(height * 100) / 100,
+      };
+    });
+  }
+  await expect(page.locator(".video-card a")).toHaveCount(0);
+  await expect(marker).toHaveCount(0);
+  const original = await dimensions();
+  await select.click();
+  await expect(select).toHaveAttribute("aria-pressed", "true");
+  expect(await dimensions()).toEqual(original);
+  await expect(marker).toHaveCount(0); // The current award is excluded.
+  for (const code of ["music", "composition", "creative", "humor", "theme"]) {
+    await visitAward(code);
+    await expect(marker).toBeVisible(); // Visible even before selecting this award.
+    await select.click();
+    await expect(saved).toBeVisible();
+  }
+  await visitAward("overall");
+  await expect(marker).toHaveText("他5部門で選択中");
+  expect(await dimensions()).toEqual(original);
+  await page.reload();
+  await expect(marker).toHaveText("他5部門で選択中");
+  await marker.focus();
+  await page.keyboard.press("Enter");
+  await expect(panel).toBeVisible();
+  await expect(panel.locator("li")).toHaveText([
+    "✓ 選曲賞",
+    "✓ 構成賞",
+    "✓ クリエイティブ賞",
+    "✓ 諧謔賞",
+    "✓ テーマ賞",
+  ]);
+  expect(await dimensions()).toEqual(original);
+  await expect(
+    panel.getByRole("button", { name: "賞の一覧を閉じる" }),
+  ).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(panel).toHaveCount(0);
+  await expect(marker).toBeFocused();
+  await marker.click();
+  await page.getByRole("heading", { name: /^総合賞/ }).click();
+  await expect(panel).toHaveCount(0);
+  for (const width of [320, 390, 768, 1024, 1120, 1280, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    const before = await dimensions();
+    await marker.click();
+    await expect(panel).toBeVisible();
+    expect(await dimensions()).toEqual(before);
+    await page.screenshot({ path: `artifacts/other-awards-${width}.png` });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    const panelBox = (await panel.boundingBox())!;
+    const cardBox = (await card.boundingBox())!;
+    expect(panelBox.x).toBeGreaterThanOrEqual(cardBox.x);
+    expect(panelBox.x + panelBox.width).toBeLessThanOrEqual(
+      cardBox.x + cardBox.width,
+    );
+    expect(panelBox.y).toBeGreaterThanOrEqual(cardBox.y);
+    expect(panelBox.y + panelBox.height).toBeLessThanOrEqual(
+      cardBox.y + cardBox.height,
+    );
+    await panel.getByRole("button", { name: "賞の一覧を閉じる" }).click();
+    await expect(marker).toBeFocused();
+    await select.click();
+    expect(await dimensions()).toEqual(before);
+    await expect(marker).toHaveText("他5部門で選択中");
+    await select.click();
+    expect(await dimensions()).toEqual(before);
+  }
+  await card.locator(".play-button").click();
+  const player = page.getByRole("dialog");
+  const external = player.getByRole("link", { name: /ニコニコで見る/ });
+  await expect(external).toHaveAttribute(
+    "href",
+    /https:\/\/www.nicovideo.jp\/watch\/sm\d+/,
+  );
+  await expect(external).toHaveAttribute("target", "_blank");
+  await expect(
+    player.getByText("新しいタブで開きます", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "動画プレイヤーを閉じる" }).click();
+  for (const [index, code] of [
+    "music",
+    "composition",
+    "creative",
+    "humor",
+    "theme",
+  ].entries()) {
+    await visitAward(code);
+    await select.click();
+    await expect(saved).toBeVisible();
+    await visitAward("overall");
+    if (index < 4)
+      await expect(marker).toHaveText(`他${4 - index}部門で選択中`);
+    else await expect(marker).toHaveCount(0);
+    expect(await dimensions()).toEqual(original);
+  }
+});
+
 test("上限超過を赤表示・27件の下書き保存と復元・超過中の確定拒否・解除後の確定", async ({
   page,
   context,
@@ -751,11 +896,12 @@ test("スマホ・保存失敗→再試行・上限・検索維持・テーマ�
   await expect(
     page.getByText("✓ 下書きを保存済み", { exact: true }),
   ).toBeVisible();
+  await page.locator(".video-card").nth(1).locator(".play-button").click();
   const searchUrl = await page
-    .locator(".video-card")
-    .nth(1)
-    .locator(".card-actions a")
+    .locator(".player-dialog")
+    .getByRole("link", { name: /ニコニコで見る/ })
     .getAttribute("href");
+  await page.getByRole("button", { name: "動画プレイヤーを閉じる" }).click();
   const searchId = new URL(searchUrl!).pathname.split("/").pop()!;
   await page.getByRole("textbox", { name: "作品を検索" }).fill(searchId);
   await expect(page.locator(".video-card")).toHaveCount(1);

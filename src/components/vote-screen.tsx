@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useVotes } from "./vote-provider";
 import { Player } from "./player";
 import { VideoImage } from "./video-image";
+import { OtherAwards } from "./other-awards";
 import { pollIsOpen } from "@/lib/validation";
 import type { AwardCode, Video } from "@/lib/types";
 const PAGE_SIZE = 12;
@@ -38,6 +39,23 @@ export function VoteScreen({ code }: { code: AwardCode }) {
     () => new Map(data.videos.map((v) => [v.video_id, v])),
     [data.videos],
   );
+  const otherAwardsByVideo = useMemo(() => {
+    const selectedByVideo = new Map<string, Set<AwardCode>>();
+    for (const entry of entries) {
+      if (entry.award_code === code) continue;
+      const codes = selectedByVideo.get(entry.video_id) ?? new Set<AwardCode>();
+      codes.add(entry.award_code);
+      selectedByVideo.set(entry.video_id, codes);
+    }
+    return new Map(
+      [...selectedByVideo].map(([videoId, codes]) => [
+        videoId,
+        data.awards
+          .filter((award) => codes.has(award.code))
+          .sort((a, b) => a.display_order - b.display_order),
+      ]),
+    );
+  }, [entries, code, data.awards]);
   const videos = useMemo(
     () =>
       data.videos
@@ -258,14 +276,11 @@ export function VoteScreen({ code }: { code: AwardCode }) {
                             </p>
                           )}
                           <div className="card-actions">
-                            <a
-                              href={v.watch_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              aria-label={`${v.title}をニコニコで見る`}
-                            >
-                              ニコニコで見る ↗
-                            </a>
+                            <OtherAwards
+                              key={code}
+                              awards={otherAwardsByVideo.get(v.video_id) ?? []}
+                              title={v.title}
+                            />
                             <button
                               aria-pressed={chosen}
                               disabled={disabled || own}

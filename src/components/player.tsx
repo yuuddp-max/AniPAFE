@@ -31,9 +31,11 @@ export function Player({ video, close }: { video: Video; close: () => void }) {
         href={video.watch_url}
         target="_blank"
         rel="noopener noreferrer"
+        aria-label={`${video.title}をニコニコで見る（新しいタブで開きます）`}
       >
         ニコニコで見る ↗
       </a>
+      <small className="player-external-note">新しいタブで開きます</small>
     </dialog>
   );
 }
