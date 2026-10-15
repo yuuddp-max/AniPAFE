@@ -4,7 +4,8 @@ import { checkOrigin, handle } from "@/lib/http";
 import { parseImport } from "@/lib/importer";
 import { adminRows } from "@/lib/admin-data";
 import type { Ballot, Profile, Entry } from "@/lib/types";
-import { currentPoll } from "@/lib/poll";
+import { z } from "zod";
+import { adminPoll } from "@/lib/admin-year-data";
 export async function POST(request: Request) {
   return handle(async () => {
     checkOrigin(request);
@@ -13,12 +14,13 @@ export async function POST(request: Request) {
       throw new HttpError(413, "ファイルは2MB以下にしてください。");
     const form = await request.formData(),
       file = form.get("file");
-    const current = await currentPoll(db);
-    if (Number(form.get("year")) !== current.year)
-      throw new HttpError(
-        409,
-        "対象年度が変更されました。再読み込みしてください。",
-      );
+    const year = z.coerce
+      .number()
+      .int()
+      .min(2000)
+      .max(2100)
+      .parse(form.get("year"));
+    const current = await adminPoll(db, year);
     if (!(file instanceof File) || file.size > 2097152)
       throw new HttpError(400, "CSVまたはXLSX（2MB以下）を指定してください。");
     const report = await parseImport(
@@ -100,7 +102,7 @@ export async function POST(request: Request) {
           400,
           "確定済み投票に影響します。対象投票を先に再開してください。",
         );
-      const { data, error } = await db.rpc("admin_import", {
+      const { data, error } = await db.rpc("admin_year_import", {
         p_videos: report.videos,
         p_expected: poll!.master_revision,
         p_year: current.year,

@@ -1,34 +1,57 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Ballot, Poll, Profile, Video } from "@/lib/types";
+import {
+  CalendarDays,
+  ChartColumn,
+  Clapperboard,
+  History,
+  UsersRound,
+} from "lucide-react";
+import type { AdminYearData, Poll } from "@/lib/types";
+import { AdminYearWorkspace } from "@/components/admin-year-workspace";
 import { jst } from "@/lib/validation";
 import { TallyPanel } from "@/components/tally-panel";
 import type { AdminTallyResult } from "@/lib/tally";
-type Preview = {
-  token: string;
-  active: number;
-  themed: number;
-  excluded: number;
-  errors: { row: number; reason: string }[];
-  diff: {
-    video_id: string;
-    title: string;
-    change: string;
-    fields: string[];
-    referencing: number;
-    invalid_drafts: number;
-    invalid_submitted: number;
-  }[];
-};
+const adminTabs = [
+  {
+    key: "settings",
+    label: "年度・投票設定",
+    description: "期間・受付・公開",
+    icon: CalendarDays,
+  },
+  {
+    key: "ranking",
+    label: "集計・明細",
+    description: "順位・明細・出力",
+    icon: ChartColumn,
+  },
+  {
+    key: "videos",
+    label: "作品マスター",
+    description: "作品登録・編集",
+    icon: Clapperboard,
+  },
+  {
+    key: "voters",
+    label: "投票者・修正",
+    description: "投票確認・訂正",
+    icon: UsersRound,
+  },
+  {
+    key: "audit",
+    label: "操作履歴",
+    description: "変更記録を確認",
+    icon: History,
+  },
+] as const;
 export function AdminDashboard({
   report,
   initialTally,
   poll,
   years,
-  videos,
-  profiles,
-  ballots,
+  initialVideos,
+  initialVoters,
   audit,
 }: {
   initialTally: AdminTallyResult;
@@ -37,9 +60,8 @@ export function AdminDashboard({
   };
   poll: Poll;
   years: Poll[];
-  videos: Video[];
-  profiles: Profile[];
-  ballots: Ballot[];
+  initialVideos: AdminYearData;
+  initialVoters: AdminYearData;
   audit: {
     id: number;
     action: string;
@@ -49,11 +71,9 @@ export function AdminDashboard({
   }[];
 }) {
   const router = useRouter(),
-    [tab, setTab] = useState("excel"),
+    [tab, setTab] = useState("ranking"),
     [message, setMessage] = useState(""),
-    [busy, setBusy] = useState(false),
-    [file, setFile] = useState<File | null>(null),
-    [preview, setPreview] = useState<Preview | null>(null);
+    [busy, setBusy] = useState(false);
   const [start, setStart] = useState(localDate(poll.starts_at)),
     [end, setEnd] = useState(localDate(poll.ends_at)),
     [published, setPublished] = useState(poll.is_published),
@@ -65,8 +85,7 @@ export function AdminDashboard({
     ),
     [newTitle, setNewTitle] = useState(
       `AniPAFE${Math.min(2100, Math.max(...years.map((y) => y.year)) + 1)} 人気投票`,
-    ),
-    [query, setQuery] = useState("");
+    );
   async function action(body: unknown) {
     setBusy(true);
     setMessage("");
@@ -84,38 +103,6 @@ export function AdminDashboard({
       if (!res.ok) throw new Error(d.error);
       setMessage("保存しました。");
       router.refresh();
-    } catch (e) {
-      setMessage((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-  async function upload(confirm = false) {
-    if (!file) return;
-    setBusy(true);
-    setMessage("");
-    try {
-      const form = new FormData();
-      form.set("file", file);
-      form.set("year", String(poll.year));
-      if (confirm && preview) {
-        form.set("confirm", "true");
-        form.set("token", preview.token);
-      }
-      const res = await fetch("/api/admin/import", {
-          method: "POST",
-          body: form,
-          signal: AbortSignal.timeout(40000),
-        }),
-        d = await res.json();
-      if (!res.ok) throw new Error(d.error);
-      if (confirm) {
-        setPreview(null);
-        setMessage(
-          `取込完了：追加${d.result.inserted}・更新${d.result.updated}・不正下書き削除${d.result.removed_drafts}件`,
-        );
-        router.refresh();
-      } else setPreview(d);
     } catch (e) {
       setMessage((e as Error).message);
     } finally {
@@ -243,210 +230,46 @@ export function AdminDashboard({
         </p>
       </details>
       <nav className="admin-tabs" aria-label="管理機能">
-        {[
-          ["excel", "集計結果"],
-          ["ranking", "集計・明細"],
-          ["videos", "作品マスター"],
-          ["settings", "年度・投票設定"],
-          ["voters", "投票者・修正"],
-          ["audit", "操作履歴"],
-        ].map(([key, label]) => (
+        {adminTabs.map(({ key, label, description, icon: Icon }) => (
           <button
+            type="button"
+            id={`admin-tab-${key}`}
+            aria-label={label}
+            aria-describedby={`admin-tab-description-${key}`}
+            aria-controls={`admin-panel-${key}`}
             aria-pressed={tab === key}
             onClick={() => setTab(key)}
             key={key}
           >
-            {label}
+            <span className="admin-tab-icon" aria-hidden="true">
+              <Icon size={20} strokeWidth={1.8} />
+            </span>
+            <span className="admin-tab-copy">
+              <span className="admin-tab-label">{label}</span>
+              <span
+                className="admin-tab-description"
+                id={`admin-tab-description-${key}`}
+              >
+                {description}
+              </span>
+            </span>
           </button>
         ))}
       </nav>
       <p role="status" className="form-message">
         {message}
       </p>
-      {(tab === "excel" || tab === "ranking") && (
+      <div id="admin-panel-ranking" hidden={tab !== "ranking"}>
         <TallyPanel
           years={years.map((y) => y.year)}
           initialResult={initialTally}
-          showDetails={tab === "ranking"}
+          showDetails
         />
-      )}
-      {tab === "videos" && (
-        <>
-          <section className="admin-panel">
-            <h2>CSV / Excel再インポート</h2>
-            <p>
-              差分と投票への影響を確認してから反映します。ファイルにない作品は保持します。非公開化は作品ごとに設定してください。
-            </p>
-            <input
-              aria-label="インポートファイル"
-              type="file"
-              accept=".csv,.xlsx"
-              onChange={(e) => {
-                setFile(e.target.files?.[0] ?? null);
-                setPreview(null);
-              }}
-            />
-            <button
-              className="button small"
-              disabled={!file || busy}
-              onClick={() => void upload()}
-            >
-              差分をプレビュー
-            </button>
-            {preview && (
-              <>
-                <p>
-                  対象{preview.active}件 / テーマ{preview.themed}件 / 除外
-                  {preview.excluded}件 / エラー{preview.errors.length}件
-                </p>
-                {preview.errors.map((e) => (
-                  <p className="error" key={e.row}>
-                    行{e.row}：{e.reason}
-                  </p>
-                ))}
-                <div className="table-scroll">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>作品</th>
-                        <th>変更</th>
-                        <th>参照票</th>
-                        <th>削除予定下書き</th>
-                        <th>不正になる確定票</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {preview.diff
-                        .filter((d) => d.change !== "変更なし")
-                        .map((d) => (
-                          <tr key={d.video_id}>
-                            <td>
-                              {d.title}
-                              <small>{d.video_id}</small>
-                            </td>
-                            <td>
-                              {d.change} {d.fields.join(", ")}
-                            </td>
-                            <td>{d.referencing}</td>
-                            <td>{d.invalid_drafts}</td>
-                            <td>{d.invalid_submitted}</td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </div>
-                <button
-                  className="button"
-                  disabled={
-                    busy ||
-                    !!preview.errors.length ||
-                    preview.diff.some((d) => d.invalid_submitted > 0)
-                  }
-                  onClick={() => {
-                    if (window.confirm("表示した差分を反映しますか？"))
-                      void upload(true);
-                  }}
-                >
-                  この差分を反映する
-                </button>
-              </>
-            )}
-          </section>
-          <input
-            className="admin-search"
-            placeholder="作品名・動画IDで検索"
-            aria-label="作品マスター検索"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>作品</th>
-                  <th>状態・テーマ</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {videos
-                  .filter((v) => `${v.title} ${v.video_id}`.includes(query))
-                  .map((v) => (
-                    <tr key={v.video_id}>
-                      <td>
-                        {v.title}
-                        <small>
-                          {v.video_id} / {v.author_name}
-                        </small>
-                      </td>
-                      <td>
-                        {v.is_active ? "有効" : "非公開"}
-                        <small>{v.theme || "テーマ未入力"}</small>
-                      </td>
-                      <td>
-                        <button
-                          disabled={busy}
-                          onClick={() => {
-                            const theme = window.prompt(
-                              "テーマ（空欄で未入力）",
-                              v.theme ?? "",
-                            );
-                            if (
-                              theme !== null &&
-                              window.confirm(
-                                "テーマを更新します。確定済み投票が不正になる場合は拒否されます。",
-                              )
-                            )
-                              void action({
-                                action: "video",
-                                video_id: v.video_id,
-                                theme,
-                                is_active: v.is_active,
-                                master_revision: poll.master_revision,
-                              });
-                          }}
-                        >
-                          テーマ編集
-                        </button>
-                        <button
-                          disabled={busy}
-                          onClick={() => {
-                            if (
-                              window.confirm(
-                                `${v.is_active ? "非公開" : "有効"}に変更しますか？確定票への影響はDBで確認します。`,
-                              )
-                            )
-                              void action({
-                                action: "video",
-                                video_id: v.video_id,
-                                theme: v.theme,
-                                is_active: !v.is_active,
-                                master_revision: poll.master_revision,
-                              });
-                          }}
-                        >
-                          {v.is_active ? "非公開にする" : "有効にする"}
-                        </button>
-                        <button
-                          disabled={busy}
-                          onClick={() =>
-                            void action({
-                              action: "thumbnail",
-                              video_id: v.video_id,
-                            })
-                          }
-                        >
-                          サムネイル再取得
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
-      {tab === "settings" && (
+      </div>
+      <div id="admin-panel-videos" hidden={tab !== "videos"}>
+        <AdminYearWorkspace years={years} initialData={initialVideos} />
+      </div>
+      <div id="admin-panel-settings" hidden={tab !== "settings"}>
         <form
           className="admin-panel profile-form"
           onSubmit={(e) => {
@@ -518,77 +341,11 @@ export function AdminDashboard({
             設定を保存
           </button>
         </form>
-      )}
-      {tab === "voters" && (
-        <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>投票者</th>
-                <th>認証ID</th>
-                <th>状態</th>
-                <th>運営による修正</th>
-              </tr>
-            </thead>
-            <tbody>
-              {profiles.map((p) => {
-                const b = ballots.find((b) => b.voter_id === p.user_id);
-                return (
-                  <tr key={p.user_id}>
-                    <td>
-                      {p.display_name}
-                      <small>ニコニコID: {p.nico_user_id}</small>
-                    </td>
-                    <td>{p.user_id}</td>
-                    <td>{b?.status === "submitted" ? "確定済み" : "下書き"}</td>
-                    <td>
-                      <button
-                        disabled={busy || b?.status !== "submitted"}
-                        onClick={() => {
-                          const reason =
-                            window.prompt("再開理由（操作履歴に記録）");
-                          if (reason)
-                            void action({
-                              action: "reopen",
-                              voter_id: p.user_id,
-                              reason,
-                            });
-                        }}
-                      >
-                        投票を再開
-                      </button>
-                      <button
-                        disabled={busy || b?.status === "submitted"}
-                        onClick={() => {
-                          const nico = window.prompt(
-                            "正しいニコニコユーザーID",
-                            p.nico_user_id,
-                          );
-                          if (!nico) return;
-                          const reason =
-                            window.prompt(
-                              "修正理由（自薦になった下書きは削除）",
-                            );
-                          if (reason)
-                            void action({
-                              action: "profile",
-                              voter_id: p.user_id,
-                              nico_user_id: nico,
-                              reason,
-                            });
-                        }}
-                      >
-                        IDを訂正
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-      {tab === "audit" && (
+      </div>
+      <div id="admin-panel-voters" hidden={tab !== "voters"}>
+        <AdminYearWorkspace years={years} initialData={initialVoters} />
+      </div>
+      <div id="admin-panel-audit" hidden={tab !== "audit"}>
         <div className="table-scroll">
           <table>
             <thead>
@@ -611,7 +368,7 @@ export function AdminDashboard({
             </tbody>
           </table>
         </div>
-      )}
+      </div>
     </>
   );
 }

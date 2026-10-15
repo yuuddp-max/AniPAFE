@@ -97,6 +97,10 @@ const functions = new Set([
   "admin_reopen",
   "admin_profile",
   "admin_thumbnail",
+  "admin_year_import",
+  "admin_year_reopen",
+  "admin_year_profile",
+  "admin_year_thumbnail",
   "admin_report",
   "poll_header",
   "manage_year",
@@ -113,6 +117,22 @@ const server = createServer(async (req, res) => {
   }
   try {
     if (url.pathname === "/health") return send(200, { ok: true });
+    if (
+      url.pathname === "/__test/admin-year-voters-seed" &&
+      req.method === "POST"
+    ) {
+      await fixture.db.exec(`
+        insert into public.data_ballot(year,voter_id,status,submitted_at,revision)
+          select 2025,voter_id,status,submitted_at,revision from public.data_ballot where year=2026 and source='site' and status='submitted';
+        insert into public.data_ballots(ballot_id,year,source,award_code,video_id,comment)
+          select older.id,2025,'site',e.award_code,e.video_id,e.comment
+          from public.data_ballot older join public.data_ballot current on current.voter_id=older.voter_id and current.year=2026
+          join public.data_ballots e on e.ballot_id=current.id where older.year=2025 and older.source='site';
+        insert into public.data_ballot(year,status,source,source_row,display_name,source_timestamp,raw_response)
+          values(2025,'imported','historical',2,'2025年度の原本回答者','原本日時','{"private_original":"original-must-stay-server-only"}');
+      `);
+      return send(200, { ok: true });
+    }
     if (url.pathname === "/__test/dashboard-seed" && req.method === "POST") {
       await fixture.db.exec(`
           insert into public.master_poll_settings(id,year,title) values(2025,2025,'AniPAFE2025 デザイン検証');

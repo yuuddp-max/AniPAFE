@@ -7,7 +7,7 @@ import { csv } from "@/lib/validation";
 
 const querySchema = z.object({
   year: z.coerce.number().int().min(2000).max(2100),
-  source: z.enum(["site", "historical"]),
+  source: z.enum(["auto", "site", "historical"]).default("auto"),
   denominator: z.coerce.number().int().min(1).max(100000).default(143),
   format: z.enum(["json", "ranking", "score", "details"]).default("json"),
   include_details: z.enum(["0", "1"]).default("0"),
@@ -36,7 +36,7 @@ export async function GET(request: Request) {
     return new Response(csv(tallyCsvRows(result, input.format)), {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="anipafe${input.year}-${input.source}-${input.format}.csv"`,
+        "Content-Disposition": `attachment; filename="anipafe${input.year}-${result.source}-${input.format}.csv"`,
         "Cache-Control": "private, no-store",
       },
     });

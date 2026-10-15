@@ -2,6 +2,7 @@ import { z } from "zod";
 import { apiAdmin } from "@/lib/auth";
 import { checkOrigin, handle, jsonBody } from "@/lib/http";
 import { fetchThumbnail } from "@/lib/thumbnails";
+import { adminPoll } from "@/lib/admin-year-data";
 const reason = z.string().trim().min(1).max(500);
 const year = z.number().int().min(2000).max(2100);
 const inputSchema = z
@@ -48,6 +49,7 @@ export async function POST(request: Request) {
     checkOrigin(request);
     const { db } = await apiAdmin(),
       input = inputSchema.parse(await jsonBody(request));
+    await adminPoll(db, input.year);
     let result;
     if (
       input.action === "settings" ||
@@ -79,20 +81,20 @@ export async function POST(request: Request) {
         p_expected_year: input.year,
       });
     } else if (input.action === "reopen")
-      result = await db.rpc("admin_reopen", {
+      result = await db.rpc("admin_year_reopen", {
         p_voter: input.voter_id,
         p_reason: input.reason,
         p_year: input.year,
       });
     else if (input.action === "profile")
-      result = await db.rpc("admin_profile", {
+      result = await db.rpc("admin_year_profile", {
         p_voter: input.voter_id,
         p_nico: input.nico_user_id,
         p_reason: input.reason,
         p_year: input.year,
       });
     else if (input.action === "thumbnail")
-      result = await db.rpc("admin_thumbnail", {
+      result = await db.rpc("admin_year_thumbnail", {
         p_video: input.video_id,
         p_url: await fetchThumbnail(input.video_id),
         p_year: input.year,
@@ -105,7 +107,7 @@ export async function POST(request: Request) {
         .eq("year", input.year)
         .single();
       if (error) throw error;
-      result = await db.rpc("admin_import", {
+      result = await db.rpc("admin_year_import", {
         p_videos: [
           { ...data, theme: input.theme || null, is_active: input.is_active },
         ],

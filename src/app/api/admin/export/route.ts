@@ -2,7 +2,6 @@ import { z } from "zod";
 import { apiAdmin, HttpError } from "@/lib/auth";
 import { handle } from "@/lib/http";
 import { csv } from "@/lib/validation";
-import { currentPoll } from "@/lib/poll";
 import { loadTally } from "@/lib/tally-data";
 import { tallyCsvRows } from "@/lib/tally";
 
@@ -16,12 +15,13 @@ export async function GET(request: Request) {
         source: z.enum(["auto", "site", "historical"]).default("auto"),
       })
       .parse(Object.fromEntries(new URL(request.url).searchParams));
-    const poll = await currentPoll(db);
-    if (input.year !== poll.year)
-      throw new HttpError(
-        409,
-        "対象年度が変更されました。再読み込みしてください。",
-      );
+    const { data: year, error } = await db
+      .from("master_poll_settings")
+      .select("year")
+      .eq("year", input.year)
+      .maybeSingle();
+    if (error) throw error;
+    if (!year) throw new HttpError(404, "年度が登録されていません。");
     const result = await loadTally(
       db,
       input.year,

@@ -52,6 +52,26 @@ export type Poll = {
   results_public: boolean;
   master_revision: number;
 };
+export type AdminVoter = {
+  ballot_id: string;
+  voter_id: string | null;
+  display_name: string;
+  nico_user_id: string;
+  source: "site" | "historical";
+  status: "draft" | "submitted" | "imported";
+};
+export type AdminVideosData = {
+  kind: "videos";
+  year: number;
+  master_revision: number;
+  videos: Video[];
+};
+export type AdminVotersData = {
+  kind: "voters";
+  year: number;
+  voters: AdminVoter[];
+};
+export type AdminYearData = AdminVideosData | AdminVotersData;
 export type Ranking = {
   award_code: string;
   award_name: string;

@@ -91,24 +91,115 @@
   font-size: 24px;
 }
 .admin-main .admin-tabs {
-  gap: 4px;
-  scrollbar-width: thin;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin: 18px 0 24px;
+  padding: 8px;
+  overflow: visible;
+  border: 1px solid #dce3da;
+  border-radius: 16px;
+  background: #f0f3ed;
 }
 .admin-main .admin-tabs button {
-  padding: 13px 18px;
-  font-size: 12px;
-  border-bottom: 3px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 82px;
+  padding: 12px;
+  border: 1px solid #dce3da;
+  border-radius: 10px;
+  background: #fff;
+  color: #243e33;
+  text-align: left;
+  white-space: normal;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease;
 }
 .admin-main .admin-tabs button:hover {
-  background: #edf2e9;
+  background: #f7faf4;
+  border-color: #8da68f;
+  box-shadow: 0 2px 5px #243e330a;
+}
+.admin-main .admin-tabs button:focus-visible {
+  outline: 3px solid #986729;
+  outline-offset: 3px;
 }
 .admin-main .admin-tabs button[aria-pressed="true"] {
-  border-bottom-color: #356349;
+  border-color: #2c5740;
+  border-radius: 10px;
+  background: #2c5740;
+  color: #fff;
+  box-shadow: 0 3px 7px #243e3326;
+}
+.admin-tab-icon {
+  display: flex;
+  flex: 0 0 34px;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  color: #356349;
   background: #edf2e9;
-  border-radius: 8px 8px 0 0;
+}
+.admin-tabs button[aria-pressed="true"] .admin-tab-icon {
+  color: #fff;
+  background: #ffffff1f;
+}
+.admin-tab-copy {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+.admin-tab-label {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+.admin-tab-description {
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #596b61;
+}
+.admin-tabs button[aria-pressed="true"] .admin-tab-description {
+  color: #e4eee2;
+}
+@media (max-width: 980px) {
+  .admin-main .admin-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .admin-main .admin-tabs button:first-child {
+    grid-column: 1 / -1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .admin-main .admin-tabs button {
+    transition: none;
+  }
 }
 .admin-main > .form-message:empty {
   display: none;
+}
+.admin-workspace-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
+}
+.admin-workspace-heading h2 {
+  margin: 0 auto 0 0;
+}
+.admin-workspace-heading p {
+  width: 100%;
+  margin: 0;
+}
+.admin-year-workspace {
+  min-width: 0;
 }
 .tally-dashboard {
   min-width: 0;
@@ -859,7 +950,20 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .admin-main .admin-tabs button {
-    padding: 12px 14px;
+    min-height: 64px;
+    padding: 10px 12px;
+  }
+  .admin-main .admin-tabs {
+    gap: 6px;
+    padding: 6px;
+    margin: 14px 0 20px;
+    border-radius: 12px;
+  }
+  .admin-tab-icon {
+    display: none;
+  }
+  .admin-tab-label {
+    font-size: 13px;
   }
   .tally-heading {
     gap: 10px;

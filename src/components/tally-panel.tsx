@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import {
   Download,
   Info,
@@ -21,7 +21,7 @@ export function TallyPanel({
   showDetails?: boolean;
 }) {
   const [year, setYear] = useState(initialResult.year);
-  const [source, setSource] = useState(initialResult.source);
+  const [source, setSource] = useState("auto");
   const [denominator, setDenominator] = useState(
     String(initialResult.score_denominator),
   );
@@ -34,6 +34,7 @@ export function TallyPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const requestId = useRef(0);
+  const previousInitialResult = useRef(initialResult);
   function clear() {
     requestId.current++;
     setResult(null);
@@ -68,6 +69,14 @@ export function TallyPanel({
       if (id === requestId.current) setBusy(false);
     }
   }
+  const refreshFromServer = useEffectEvent(() => {
+    void calculate();
+  });
+  useEffect(() => {
+    if (previousInitialResult.current === initialResult) return;
+    previousInitialResult.current = initialResult;
+    refreshFromServer();
+  }, [initialResult]);
   const exportQuery = result
     ? new URLSearchParams({
         year: String(result.year),
@@ -131,6 +140,7 @@ export function TallyPanel({
             onChange={(e) => {
               clear();
               setYear(Number(e.target.value));
+              setSource("auto");
             }}
           >
             {years.map((y) => (
@@ -150,6 +160,7 @@ export function TallyPanel({
               setSource(e.target.value);
             }}
           >
+            <option value="auto">集計年度のデータから自動選択</option>
             <option value="historical">過去フォーム原本（暫定）</option>
             <option value="site">サイトの確定済み投票</option>
           </select>
@@ -177,6 +188,10 @@ export function TallyPanel({
           {busy ? "集計中…" : "Excel方式で集計"}
         </button>
       </form>
+      <p className="muted">
+        上部の対象年度に関係なく、選んだ集計年度の投票を集計します。
+        自動選択では過去フォーム原本がある年度は原本、それ以外はサイト確定票を使います。
+      </p>
       {error && (
         <p role="alert" className="error">
           {error}

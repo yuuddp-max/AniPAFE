@@ -134,14 +134,123 @@ test("Excel集計：権限・原本1206明細のページング・年度独立�
   expect(exported.headers()["content-type"]).toContain("text/csv");
   expect(await exported.text()).toContain("'=Excel集計テスト");
   expect(await exported.text()).toContain("未確認");
+
+  // Aggregate another year without changing the public event's target year.
+  await page.goto("/admin");
+  const navigation = page.getByRole("navigation", { name: "管理機能" });
+  await expect(
+    navigation.getByRole("button", { name: "集計結果", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    navigation.getByRole("button", { name: "集計・明細", exact: true }),
+  ).toHaveCount(1);
+  await expect(
+    navigation.getByRole("button", { name: "集計・明細", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  const independentPanel = page.getByRole("region", {
+    name: "Excel方式の集計",
+  });
+  await expect(independentPanel.getByLabel("集計年度")).toHaveValue("2026");
+  await expect(independentPanel.getByLabel("集計元")).toHaveValue("auto");
+  await expect(independentPanel.getByLabel("集計結果の概要")).toContainText(
+    "2026年度・サイト確定票：1回答／10票",
+  );
+  await expect(
+    independentPanel.getByRole("region", { name: "投票明細・感想" }),
+  ).toContainText("10明細");
+  await expect(
+    independentPanel.getByRole("link", { name: "投票明細CSV ↓", exact: true }),
+  ).toBeVisible();
+  await independentPanel.getByLabel("集計年度").selectOption("2025");
+  await independentPanel
+    .getByRole("button", { name: "Excel方式で集計", exact: true })
+    .click();
+  await expect(independentPanel.getByLabel("集計結果の概要")).toContainText(
+    "2025年度・過去フォーム原本：201回答／1206票",
+  );
+  await expect(
+    page.getByText("対象年度：2026年度", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    independentPanel.getByRole("region", { name: "投票明細・感想" }),
+  ).toContainText("1206明細");
+  const independentCsv = await page.request.get(
+    (await independentPanel
+      .getByRole("link", { name: "投票明細CSV ↓", exact: true })
+      .getAttribute("href")) as string,
+  );
+  expect(independentCsv.ok()).toBeTruthy();
+  expect(await independentCsv.text()).toContain("原本の回答者");
+  const legacyCsv = await page.request.get(
+    "/api/admin/export?year=2025&type=details",
+  );
+  expect(legacyCsv.ok()).toBeTruthy();
+  expect(await legacyCsv.text()).toBe(await independentCsv.text());
+  // Explicit source selection remains available; a new year resets it to auto.
+  await independentPanel.getByLabel("集計元").selectOption("site");
+  await independentPanel
+    .getByRole("button", { name: "Excel方式で集計", exact: true })
+    .click();
+  await expect(independentPanel.getByLabel("集計結果の概要")).toContainText(
+    "2025年度・サイト確定票：0回答／0票",
+  );
+  await independentPanel.getByLabel("集計年度").selectOption("2026");
+  await expect(independentPanel.getByLabel("集計元")).toHaveValue("auto");
+  await independentPanel
+    .getByRole("button", { name: "Excel方式で集計", exact: true })
+    .click();
+  await expect(independentPanel.getByLabel("集計結果の概要")).toContainText(
+    "2026年度・サイト確定票：1回答／10票",
+  );
+  const autoHistorical = await page.request.get(
+    "/api/admin/tally?year=2025&source=auto",
+  );
+  expect(autoHistorical.ok()).toBeTruthy();
+  expect(await autoHistorical.json()).toMatchObject({
+    year: 2025,
+    source: "historical",
+    selection_count: 1206,
+  });
+  const autoSite = await page.request.get("/api/admin/tally?year=2026");
+  expect(autoSite.ok()).toBeTruthy();
+  expect(await autoSite.json()).toMatchObject({
+    year: 2026,
+    source: "site",
+    selection_count: 10,
+  });
+  const autoCsv = await page.request.get(
+    "/api/admin/tally?year=2025&source=auto&format=ranking",
+  );
+  expect(autoCsv.headers()["content-disposition"]).toContain(
+    "2025-historical-ranking.csv",
+  );
+  expect(await autoCsv.text()).toBe(await exported.text());
+  expect(
+    (
+      await page.request.get("/api/admin/export?year=2024&type=ranking")
+    ).status(),
+  ).toBe(404);
+  await page.reload();
+  await expect(
+    page.getByText("対象年度：2026年度", { exact: true }),
+  ).toBeVisible();
   const switched = await page.request.post("/api/admin", {
     headers,
     data: { action: "switch_year", year: 2026, target_year: 2025 },
   });
   expect(switched.ok(), await switched.text()).toBeTruthy();
+  const otherYear = await page.request.get(
+    "/api/admin/tally?year=2026&source=auto",
+  );
+  expect(otherYear.ok()).toBeTruthy();
+  expect(await otherYear.json()).toMatchObject({
+    year: 2026,
+    source: "site",
+    selection_count: 10,
+  });
   await page.goto("/admin");
   await expect(
-    page.getByRole("button", { name: "集計結果", exact: true }),
+    page.getByRole("button", { name: "集計・明細", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
   const panel = page.getByRole("region", { name: "Excel方式の集計" });
   await expect(panel.getByLabel("集計年度")).toHaveValue("2025");
@@ -164,13 +273,6 @@ test("Excel集計：権限・原本1206明細のページング・年度独立�
   await expect(
     page.locator(".admin-stats > div").filter({ hasText: "過去フォーム票数" }),
   ).toContainText("1206");
-  await page.getByRole("button", { name: "集計・明細", exact: true }).click();
-  await expect(panel.getByLabel("集計結果の概要")).toContainText(
-    "201回答／1206票",
-  );
-  await expect(
-    panel.getByRole("cell", { name: "1206～1207", exact: true }),
-  ).toBeVisible();
   const detailSection = panel.getByRole("region", { name: "投票明細・感想" });
   await expect(detailSection).toContainText("1206明細");
   await expect(detailSection.locator("tbody tr")).toHaveCount(50);
@@ -191,12 +293,14 @@ test("Excel集計：権限・原本1206明細のページング・年度独立�
   const detailExport = await page.request.get(endpoint + "&format=details");
   expect(detailExport.ok()).toBeTruthy();
   expect(await detailExport.text()).toBe(await oldDetails.text());
-  await page.getByRole("button", { name: "集計結果", exact: true }).click();
   await panel
     .getByRole("group", { name: "表示内容", exact: true })
     .getByRole("button", { name: "スコア計算", exact: true })
     .click();
-  await expect(panel.locator("caption")).toContainText("分母143");
+  await expect(
+    panel.getByRole("region", { name: "集計順位とスコア" }).locator("caption"),
+  ).toContainText("分母143");
+  await expect(detailSection).toContainText("2 / 25ページ");
   await expect(
     panel.getByRole("cell", { name: "99.301", exact: true }),
   ).toBeVisible();
@@ -227,6 +331,20 @@ test("Excel集計：権限・原本1206明細のページング・年度独立�
     await login(reader, request, "other");
     const other = await reader.request.get(new URL(endpoint, page.url()).href);
     expect(other.status()).toBe(403);
+    expect(
+      (
+        await reader.request.get(
+          new URL("/api/admin/tally?year=2025&source=auto", page.url()).href,
+        )
+      ).status(),
+    ).toBe(403);
+    expect(
+      (
+        await reader.request.get(
+          new URL("/api/admin/export?year=2026&type=details", page.url()).href,
+        )
+      ).status(),
+    ).toBe(403);
     expect(
       (
         await reader.request.get(
@@ -316,7 +434,8 @@ test("集計ダッシュボード：部門連動・検索・詳細列・スコ�
     exact: true,
   });
   await search.fill("Blue Memories");
-  const table = panel.getByRole("table");
+  const results = panel.getByRole("region", { name: "集計順位とスコア" });
+  const table = results.getByRole("table");
   await expect(table.locator("tbody tr")).toHaveCount(1);
   await expect(table).toContainText("アオの記憶");
   await expect(metrics).toContainText("120");
@@ -346,12 +465,12 @@ test("集計ダッシュボード：部門連動・検索・詳細列・スコ�
     .getByRole("group", { name: "表示内容", exact: true })
     .getByRole("button", { name: "スコア計算", exact: true })
     .click();
-  const scores = await panel
+  const scores = await results
     .getByRole("table")
     .locator("tbody tr")
     .allTextContents();
   expect(scores).toHaveLength(12);
-  const values = await panel
+  const values = await results
     .getByRole("table")
     .locator("tbody tr td:last-child")
     .allTextContents();
