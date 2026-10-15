@@ -35,6 +35,8 @@ export function TallyPanel({
   const [error, setError] = useState("");
   const requestId = useRef(0);
   const previousInitialResult = useRef(initialResult);
+  const previousConditions = useRef(`${year}:${source}:${denominator}`);
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   function clear() {
     requestId.current++;
     setResult(null);
@@ -42,7 +44,10 @@ export function TallyPanel({
     setError("");
     setBusy(false);
   }
-  async function calculate() {
+  async function calculate(force = false) {
+    if (force && refreshTimer.current) clearTimeout(refreshTimer.current);
+    const value = Number(denominator);
+    if (!Number.isInteger(value) || value < 1 || value > 100000) return;
     const id = ++requestId.current;
     setBusy(true);
     setError("");
@@ -55,6 +60,7 @@ export function TallyPanel({
         include_details: "1",
       });
       const response = await fetch(`/api/admin/tally?${query}`, {
+        method: force ? "POST" : "GET",
         signal: AbortSignal.timeout(40000),
       });
       const data = await response.json();
@@ -73,10 +79,18 @@ export function TallyPanel({
     void calculate();
   });
   useEffect(() => {
-    if (previousInitialResult.current === initialResult) return;
+    const conditions = `${year}:${source}:${denominator}`;
+    if (
+      previousInitialResult.current === initialResult &&
+      previousConditions.current === conditions
+    )
+      return;
     previousInitialResult.current = initialResult;
-    refreshFromServer();
-  }, [initialResult]);
+    previousConditions.current = conditions;
+    const timer = setTimeout(() => refreshFromServer(), 250);
+    refreshTimer.current = timer;
+    return () => clearTimeout(timer);
+  }, [initialResult, year, source, denominator]);
   const exportQuery = result
     ? new URLSearchParams({
         year: String(result.year),
@@ -129,7 +143,7 @@ export function TallyPanel({
         className="tally-controls"
         onSubmit={(e) => {
           e.preventDefault();
-          void calculate();
+          void calculate(true);
         }}
       >
         <label>
@@ -185,12 +199,13 @@ export function TallyPanel({
             aria-hidden="true"
             className={busy ? "tally-spin" : undefined}
           />
-          {busy ? "集計中…" : "Excel方式で集計"}
+          {busy ? "読み込み中…" : "再集計"}
         </button>
       </form>
       <p className="muted">
         上部の対象年度に関係なく、選んだ集計年度の投票を集計します。
         自動選択では過去フォーム原本がある年度は原本、それ以外はサイト確定票を使います。
+        保存済みの集計結果を自動で読み込み、データ更新時に再集計します。
       </p>
       {error && (
         <p role="alert" className="error">
@@ -201,7 +216,7 @@ export function TallyPanel({
         <div className="tally-empty" role="status">
           {busy
             ? "投票明細から得点・順位・スコアを再計算しています…"
-            : "集計条件を変更しました。「Excel方式で集計」で結果を表示します。"}
+            : "集計結果を読み込んでいます。"}
         </div>
       )}
       {result && (
@@ -220,17 +235,9 @@ export function TallyPanel({
             {result.provisional
               ? "製作者加点は未確認のため暫定です。"
               : "製作者加点を確認済みです。"}
+            {result.calculated_at && ` 集計日時：${jst(result.calculated_at)}`}
           </p>
           <TallyMetrics result={result} />
-          {result.provisional && (
-            <div className="tally-notice">
-              <Info size={18} aria-hidden="true" />
-              <p>
-                <strong>製作者加点は未確認です</strong>
-                総合賞は各作品に最大＋1点の差が生じます。順位・スコアも変わる可能性があります。
-              </p>
-            </div>
-          )}
           <section className="tally-results-card" aria-label="集計順位とスコア">
             <div className="tally-section-heading tally-results-heading">
               <div>

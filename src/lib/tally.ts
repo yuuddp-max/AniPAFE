@@ -56,6 +56,7 @@ export type TallyScore = TallyWork & {
 export type TallyResult = {
   year: number;
   source: string;
+  work_count: number;
   ballot_count: number;
   selection_count: number;
   comment_only_count: number;
@@ -77,6 +78,7 @@ export type TallyDetail = {
   source_timestamp: string | null;
 };
 export type AdminTallyResult = TallyResult & {
+  calculated_at?: string;
   historical_ballot_count: number;
   historical_selection_count: number;
   details?: TallyDetail[];
@@ -337,6 +339,7 @@ export function tally(input: {
   return {
     year: input.year,
     source: input.source,
+    work_count: input.works.length,
     ballot_count: input.ballotCount,
     selection_count: selections,
     comment_only_count: commentOnly,

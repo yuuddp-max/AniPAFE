@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { apiAdmin, HttpError } from "@/lib/auth";
-import { handle } from "@/lib/http";
+import { checkOrigin, handle } from "@/lib/http";
 import { loadTally } from "@/lib/tally-data";
 import { tallyCsvRows } from "@/lib/tally";
 import { csv } from "@/lib/validation";
@@ -13,7 +13,14 @@ const querySchema = z.object({
   include_details: z.enum(["0", "1"]).default("0"),
 });
 export async function GET(request: Request) {
+  return respond(request, false);
+}
+export async function POST(request: Request) {
+  return respond(request, true);
+}
+function respond(request: Request, force: boolean) {
   return handle(async () => {
+    if (force) checkOrigin(request);
     const { db } = await apiAdmin();
     const input = querySchema.parse(
       Object.fromEntries(new URL(request.url).searchParams),
@@ -31,6 +38,7 @@ export async function GET(request: Request) {
       input.source,
       input.denominator,
       input.include_details === "1" || input.format === "details",
+      force,
     );
     if (input.format === "json") return result;
     return new Response(csv(tallyCsvRows(result, input.format)), {

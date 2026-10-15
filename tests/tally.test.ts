@@ -255,6 +255,7 @@ test("作品未対応・重複選択を省略せず、感想のみは票に数�
   ]);
   assert.equal(result.selection_count, 2);
   assert.equal(result.comment_only_count, 1);
+  assert.equal(result.work_count, works.length);
   assert.equal(result.rankings[0].votes, 2);
   assert.equal(result.rankings[0].unmapped, true);
   assert.equal(result.rankings[0].display_order, 72);

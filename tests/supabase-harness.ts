@@ -8,6 +8,8 @@ import { fixtureSeedSql } from "./fixtures";
 const fixture = await database();
 const users = { voter: U1, other: U2, admin: ADMIN };
 const sessions = new Map<string, string>();
+let tallyInputReads = 0;
+let legacyReports = 0;
 function user(uid: string) {
   return {
     id: uid,
@@ -87,6 +89,7 @@ const tables = new Set([
   "admin_users",
   "audit_logs",
   "master_event_settings",
+  "data_tally_results",
 ]);
 const functions = new Set([
   "save_profile",
@@ -102,9 +105,12 @@ const functions = new Set([
   "admin_year_profile",
   "admin_year_thumbnail",
   "admin_report",
+  "admin_summary",
   "poll_header",
   "manage_year",
   "vote_history",
+  "admin_tally_state",
+  "admin_save_tally_result",
 ]);
 const server = createServer(async (req, res) => {
   const url = new URL(req.url!, "http://127.0.0.1:54329");
@@ -117,6 +123,22 @@ const server = createServer(async (req, res) => {
   }
   try {
     if (url.pathname === "/health") return send(200, { ok: true });
+    if (url.pathname === "/__test/tally-storage") {
+      const stored = await fixture.db.query(
+        "select year,source,score_denominator,calculated_at from public.data_tally_results order by year,source,score_denominator",
+      );
+      return send(200, {
+        reads: tallyInputReads,
+        legacyReports,
+        stored: stored.rows,
+      });
+    }
+    if (url.pathname === "/__test/tally-edit" && req.method === "POST") {
+      await fixture.db.exec(
+        "update public.data_ballots set comment='更新された感想' where year=2025;",
+      );
+      return send(200, { ok: true });
+    }
     if (
       url.pathname === "/__test/admin-year-voters-seed" &&
       req.method === "POST"
@@ -194,7 +216,7 @@ const server = createServer(async (req, res) => {
       // Keep one WASM instance: repeatedly disposing PGlite can crash Node's Windows JIT.
       // Reset all test data, including years added by the previous browser test.
       await fixture.db.transaction(async (tx) => {
-        await tx.exec(`delete from public.data_ballots; delete from public.data_ballot;
+        await tx.exec(`delete from public.data_tally_results; delete from public.data_ballots; delete from public.data_ballot;
           delete from public.data_profiles; delete from public.audit_logs; delete from public.data_mad;
           update public.master_event_settings set target_year=2026 where id=1;
           delete from public.master_award_types where year<>2026;
@@ -204,6 +226,8 @@ const server = createServer(async (req, res) => {
         await tx.exec(await fixtureSeedSql());
       });
       sessions.clear();
+      tallyInputReads = 0;
+      legacyReports = 0;
       await prepare();
       return send(200, { ok: true });
     }
@@ -226,6 +250,7 @@ const server = createServer(async (req, res) => {
     if (url.pathname.startsWith("/rest/v1/rpc/")) {
       const fn = url.pathname.split("/").pop()!;
       if (!functions.has(fn)) return send(404, { message: "Unknown RPC" });
+      if (fn === "admin_report") legacyReports++;
       let body = "";
       for await (const chunk of req) body += chunk;
       const args = JSON.parse(body || "{}"),
@@ -249,6 +274,12 @@ const server = createServer(async (req, res) => {
     const table = url.pathname.replace("/rest/v1/", "");
     if (req.method !== "GET" || !tables.has(table))
       return send(404, { message: "Unsupported transport" });
+    if (
+      ["data_mad", "data_ballot", "data_ballots", "data_profiles"].includes(
+        table,
+      )
+    )
+      tallyInputReads++;
     const params: unknown[] = [],
       conditions: string[] = [];
     for (const [key, value] of url.searchParams) {

@@ -17,7 +17,7 @@ export default async function AdminPage() {
   const poll = await currentPoll(db);
   const [report, years, initialVideos, initialVoters, audit] =
     await Promise.all([
-      db.rpc("admin_report"),
+      db.rpc("admin_summary"),
       db
         .from("master_poll_settings")
         .select("*")

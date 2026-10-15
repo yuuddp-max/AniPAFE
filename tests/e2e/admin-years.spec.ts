@@ -536,9 +536,6 @@ test("管理タブの視認性・全幅配置・キーボード操作と集計�
   );
   await expect(details).toContainText("2 / 3ページ");
   await tally.getByLabel("集計年度", { exact: true }).selectOption("2026");
-  await tally
-    .getByRole("button", { name: "Excel方式で集計", exact: true })
-    .click();
   await expect(tally.getByLabel("集計結果の概要")).toContainText("2026年度");
   await navigation
     .getByRole("button", { name: "年度・投票設定", exact: true })

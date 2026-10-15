@@ -1,5 +1,5 @@
-import { BarChart3, Files, Layers3, Users } from "lucide-react";
-import { tallyAwards, type AdminTallyResult } from "@/lib/tally";
+import { Clapperboard, Files, Users } from "lucide-react";
+import type { AdminTallyResult } from "@/lib/tally";
 
 const format = (value: number) => value.toLocaleString("ja-JP");
 
@@ -13,11 +13,11 @@ export function TallyMetrics({ result }: { result: AdminTallyResult }) {
     <div className="tally-metrics" aria-label="投票集計サマリー">
       {[
         {
-          label: "総投票数",
-          value: result.selection_count,
-          unit: "票",
-          hint: "全6部門の選択数",
-          icon: BarChart3,
+          label: "作品数合計",
+          value: result.work_count,
+          unit: "作品",
+          hint: "集計年度の登録作品（得票なしを含む）",
+          icon: Clapperboard,
         },
         {
           label: "投票回答数",
@@ -35,13 +35,6 @@ export function TallyMetrics({ result }: { result: AdminTallyResult }) {
           unit: "作品",
           hint: "1票以上の得票がある作品",
           icon: Files,
-        },
-        {
-          label: "集計部門",
-          value: tallyAwards.length,
-          unit: "部門",
-          hint: `選択なしの感想 ${format(result.comment_only_count)}件`,
-          icon: Layers3,
         },
       ].map(({ label, value, unit, hint, icon: Icon }, i) => (
         <article
