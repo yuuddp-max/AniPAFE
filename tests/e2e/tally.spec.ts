@@ -357,7 +357,7 @@ test("Excel集計：権限・原本1206明細のページング・年度独立�
   }
 });
 
-test("集計ダッシュボード：部門連動・検索・詳細列・スコア・レスポンシブ表示", async ({
+test("集計ダッシュボード：概要グラフの削除・部門切替・検索・詳細列・スコア・レスポンシブ表示", async ({
   page,
   context,
   request,
@@ -383,14 +383,13 @@ test("集計ダッシュボード：部門連動・検索・詳細列・スコ�
   await expect(
     metrics.locator("article").filter({ hasText: "得票作品数" }),
   ).toContainText("8作品");
+  await expect(panel.getByLabel("総合賞の上位3作品")).toHaveCount(0);
   await expect(
-    panel.getByLabel("総合賞の上位3作品").locator("article"),
-  ).toHaveCount(3);
+    panel.getByRole("region", { name: /の得票グラフ|部門別の投票数/ }),
+  ).toHaveCount(0);
   await expect(
-    panel
-      .getByRole("region", { name: "総合賞の得票グラフ", exact: true })
-      .locator("li"),
-  ).toHaveCount(8);
+    panel.getByRole("heading", { name: "部門別ハイライト", exact: true }),
+  ).toHaveCount(0);
   await expect(
     panel.getByRole("columnheader", { name: "補助合計", exact: true }),
   ).toHaveCount(0);
@@ -408,27 +407,18 @@ test("集計ダッシュボード：部門連動・検索・詳細列・スコ�
     "総合賞",
   ]) {
     await panel
-      .getByRole("group", { name: "ハイライトの部門", exact: true })
-      .getByRole("button", { name: award, exact: true })
-      .click();
+      .getByLabel("Excel集計部門", { exact: true })
+      .selectOption({ label: award });
     await expect(
       panel.getByRole("table", {
         name: `2025年度 ${award}（暫定）`,
         exact: true,
       }),
     ).toBeVisible();
-    await expect(
-      panel.getByRole("region", { name: `${award}の得票グラフ`, exact: true }),
-    ).toBeVisible();
-    await expect(panel.getByLabel(`${award}の上位3作品`)).toBeVisible();
   }
   await panel
-    .getByRole("region", { name: "部門別の投票数", exact: true })
-    .getByRole("button", { name: "選曲賞 26票", exact: true })
-    .click();
-  await expect(panel.getByLabel("Excel集計部門", { exact: true })).toHaveValue(
-    "music",
-  );
+    .getByLabel("Excel集計部門", { exact: true })
+    .selectOption("music");
   const search = panel.getByRole("searchbox", {
     name: "作品・製作者を検索",
     exact: true,

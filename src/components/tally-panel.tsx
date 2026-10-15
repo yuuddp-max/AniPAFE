@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { tallyAwards, type AdminTallyResult } from "@/lib/tally";
 import { jst } from "@/lib/validation";
-import { TallyMetrics, TallyOverview } from "@/components/tally-overview";
+import { TallyMetrics } from "@/components/tally-overview";
 
 export function TallyPanel({
   years,
@@ -231,11 +231,6 @@ export function TallyPanel({
               </p>
             </div>
           )}
-          <TallyOverview
-            result={result}
-            award={award}
-            onAwardChange={setAward}
-          />
           <section className="tally-results-card" aria-label="集計順位とスコア">
             <div className="tally-section-heading tally-results-heading">
               <div>
