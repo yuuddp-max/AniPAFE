@@ -20,6 +20,9 @@
   font-weight: 700;
   letter-spacing: 0.05em;
 }
+.admin-dashboard-heading {
+  margin-bottom: 16px;
+}
 .admin-private-label {
   border: 1px solid #d9e2d9;
   border-radius: 6px;

@@ -168,9 +168,9 @@ test("Excel集計：権限・原本1206明細のページング・年度独立�
   await expect(independentPanel.getByLabel("集計結果の概要")).toContainText(
     "2025年度・過去フォーム原本：201回答／1206票",
   );
-  await expect(
-    page.getByText("対象年度：2026年度", { exact: true }),
-  ).toBeVisible();
+  await expect(page.locator(".admin-registration > summary")).toContainText(
+    "2026年度の登録状況",
+  );
   await expect(
     independentPanel.getByRole("region", { name: "投票明細・感想" }),
   ).toContainText("1206明細");
@@ -231,9 +231,9 @@ test("Excel集計：権限・原本1206明細のページング・年度独立�
     ).status(),
   ).toBe(404);
   await page.reload();
-  await expect(
-    page.getByText("対象年度：2026年度", { exact: true }),
-  ).toBeVisible();
+  await expect(page.locator(".admin-registration > summary")).toContainText(
+    "2026年度の登録状況",
+  );
   const switched = await page.request.post("/api/admin", {
     headers,
     data: { action: "switch_year", year: 2026, target_year: 2025 },
@@ -264,9 +264,9 @@ test("Excel集計：権限・原本1206明細のページング・年度独立�
   await expect(
     panel.getByRole("cell", { name: "1206～1207", exact: true }),
   ).toBeVisible();
-  await expect(
-    page.getByText("対象年度：2025年度", { exact: true }),
-  ).toBeVisible();
+  await expect(page.locator(".admin-registration > summary")).toContainText(
+    "2025年度の登録状況",
+  );
   await expect(
     page.locator(".admin-stats > div").filter({ hasText: "過去フォーム回答" }),
   ).toContainText("201");

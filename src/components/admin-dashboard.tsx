@@ -17,7 +17,7 @@ const adminTabs = [
   {
     key: "settings",
     label: "年度・投票設定",
-    description: "期間・受付・公開",
+    description: "対象年度・期間・公開",
     icon: CalendarDays,
   },
   {
@@ -118,83 +118,6 @@ export function AdminDashboard({
         </div>
         <span className="admin-private-label">運営者限定</span>
       </header>
-      <section className="admin-year-bar" aria-label="対象年度の管理">
-        <div>
-          <strong>対象年度：{poll.year}年度</strong>
-          <p className="muted">{poll.title}</p>
-        </div>
-        <label>
-          対象年度
-          <select
-            aria-label="対象年度"
-            value={targetYear}
-            onChange={(e) => setTargetYear(Number(e.target.value))}
-          >
-            {years.map((y) => (
-              <option key={y.year} value={y.year}>
-                {y.year}年度
-              </option>
-            ))}
-          </select>
-        </label>
-        <button
-          className="button secondary small"
-          disabled={busy || targetYear === poll.year}
-          onClick={() => {
-            if (
-              window.confirm(
-                `${targetYear}年度に切り替えます。投票画面と管理対象が変わります。既存の投票は保持されます。`,
-              )
-            )
-              void action({ action: "switch_year", target_year: targetYear });
-          }}
-        >
-          対象年度を切り替え
-        </button>
-        <details className="year-create">
-          <summary>新しい年度を追加</summary>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              void action({
-                action: "create_year",
-                new_year: newYear,
-                title: newTitle,
-              });
-            }}
-          >
-            <label>
-              追加する年度
-              <input
-                type="number"
-                min={2000}
-                max={2100}
-                value={newYear}
-                required
-                onChange={(e) => {
-                  setNewYear(Number(e.target.value));
-                  setNewTitle(`AniPAFE${e.target.value} 人気投票`);
-                }}
-              />
-            </label>
-            <label>
-              新年度の投票画面タイトル
-              <input
-                maxLength={100}
-                required
-                value={newTitle}
-                onChange={(e) => setNewTitle(e.target.value)}
-              />
-            </label>
-            <p>
-              新年度は作品未登録・受付OFF・結果非公開で作成します。追加後に対象年度を切り替え、作品を取り込んでください。
-            </p>
-            <button className="button small" disabled={busy}>
-              年度を追加
-            </button>
-          </form>
-        </details>
-      </section>
       <details className="admin-registration">
         <summary>
           {poll.year}年度の登録状況
@@ -270,6 +193,83 @@ export function AdminDashboard({
         <AdminYearWorkspace years={years} initialData={initialVideos} />
       </div>
       <div id="admin-panel-settings" hidden={tab !== "settings"}>
+        <section className="admin-year-bar" aria-label="対象年度の管理">
+          <div>
+            <strong>対象年度：{poll.year}年度</strong>
+            <p className="muted">{poll.title}</p>
+          </div>
+          <label>
+            対象年度
+            <select
+              aria-label="対象年度"
+              value={targetYear}
+              onChange={(e) => setTargetYear(Number(e.target.value))}
+            >
+              {years.map((y) => (
+                <option key={y.year} value={y.year}>
+                  {y.year}年度
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            className="button secondary small"
+            disabled={busy || targetYear === poll.year}
+            onClick={() => {
+              if (
+                window.confirm(
+                  `${targetYear}年度に切り替えます。投票画面と管理対象が変わります。既存の投票は保持されます。`,
+                )
+              )
+                void action({ action: "switch_year", target_year: targetYear });
+            }}
+          >
+            対象年度を切り替え
+          </button>
+          <details className="year-create">
+            <summary>新しい年度を追加</summary>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                void action({
+                  action: "create_year",
+                  new_year: newYear,
+                  title: newTitle,
+                });
+              }}
+            >
+              <label>
+                追加する年度
+                <input
+                  type="number"
+                  min={2000}
+                  max={2100}
+                  value={newYear}
+                  required
+                  onChange={(e) => {
+                    setNewYear(Number(e.target.value));
+                    setNewTitle(`AniPAFE${e.target.value} 人気投票`);
+                  }}
+                />
+              </label>
+              <label>
+                新年度の投票画面タイトル
+                <input
+                  maxLength={100}
+                  required
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                />
+              </label>
+              <p>
+                新年度は作品未登録・受付OFF・結果非公開で作成します。追加後に対象年度を切り替え、作品を取り込んでください。
+              </p>
+              <button className="button small" disabled={busy}>
+                年度を追加
+              </button>
+            </form>
+          </details>
+        </section>
         <form
           className="admin-panel profile-form"
           onSubmit={(e) => {

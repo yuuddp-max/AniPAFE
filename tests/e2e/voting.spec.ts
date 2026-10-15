@@ -51,13 +51,11 @@ test("年度設定・タイトル変更・過去の本人投票・公開結果�
     await parseImport(await fixtureCsv(), "videos_seed.csv")
   ).videos.filter((v) => v.author_nico_user_id !== "350396");
   const choices = [
-    ...videos
-      .slice(0, 5)
-      .map((v) => ({
-        award_code: "overall",
-        video_id: v.video_id,
-        comment: "思い出の作品 <script>window.HISTORY_XSS=1</script>",
-      })),
+    ...videos.slice(0, 5).map((v) => ({
+      award_code: "overall",
+      video_id: v.video_id,
+      comment: "思い出の作品 <script>window.HISTORY_XSS=1</script>",
+    })),
     ...["music", "composition", "creative", "humor", "theme"].map((a) => ({
       award_code: a,
       video_id: (a === "theme" ? videos.find((v) => v.theme)! : videos[0])
@@ -82,6 +80,26 @@ test("年度設定・タイトル変更・過去の本人投票・公開結果�
   const admin = await adminContext.newPage();
   try {
     await admin.goto(`${appOrigin}/admin`);
+    const yearControls = admin.getByRole("region", { name: "対象年度の管理" });
+    await expect(yearControls).toBeHidden();
+    await admin
+      .getByRole("button", { name: "年度・投票設定", exact: true })
+      .click();
+    await expect(yearControls).toBeVisible();
+    await mkdir("artifacts/admin-settings", { recursive: true });
+    for (const width of [1440, 390]) {
+      await admin.setViewportSize({ width, height: 1000 });
+      expect(
+        await admin.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBeTruthy();
+      await admin.screenshot({
+        path: `artifacts/admin-settings/settings-${width}.png`,
+        fullPage: true,
+      });
+    }
+    await admin.setViewportSize({ width: 1440, height: 1000 });
     await admin.getByText("新しい年度を追加", { exact: true }).click();
     await admin
       .getByLabel("新年度の投票画面タイトル")
@@ -97,7 +115,11 @@ test("年度設定・タイトル変更・過去の本人投票・公開結果�
       .click();
     await expect(
       admin.getByText("対象年度：2027年度", { exact: true }),
-    ).toBeVisible();
+    ).toHaveCount(1);
+    await admin
+      .getByRole("button", { name: "年度・投票設定", exact: true })
+      .click();
+    await expect(yearControls).toBeVisible();
     const stale = await page.request.post("/api/ballot", {
       headers,
       data: { year: 2026, revision: 3, entries: choices },
@@ -135,7 +157,7 @@ test("年度設定・タイトル変更・過去の本人投票・公開結果�
       .click();
     await expect(
       admin.getByText("対象年度：2026年度", { exact: true }),
-    ).toBeVisible();
+    ).toHaveCount(1);
     await admin
       .getByRole("button", { name: "年度・投票設定", exact: true })
       .click();
@@ -163,7 +185,7 @@ test("年度設定・タイトル変更・過去の本人投票・公開結果�
       .click();
     await expect(
       admin.getByText("対象年度：2027年度", { exact: true }),
-    ).toBeVisible();
+    ).toHaveCount(1);
     await page.reload();
     await expect(
       page.getByRole("heading", {

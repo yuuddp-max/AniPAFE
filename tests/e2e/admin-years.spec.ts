@@ -256,9 +256,9 @@ test("作品・投票者を年度別に閲覧・編集・取込し、対象年�
   await expect(master.locator("tbody tr").first()).toContainText(
     "2025年度だけのテーマ",
   );
-  await expect(
-    page.getByText("対象年度：2026年度", { exact: true }),
-  ).toBeVisible();
+  await expect(page.locator(".admin-registration > summary")).toContainText(
+    "2026年度の登録状況",
+  );
   expect(
     (
       await page.request.get("/api/admin/year-data?year=2024&kind=videos")
@@ -294,9 +294,9 @@ test("作品・投票者を年度別に閲覧・編集・取込し、対象年�
     fullPage: true,
   });
   await page.reload();
-  await expect(
-    page.getByText("対象年度：2026年度", { exact: true }),
-  ).toBeVisible();
+  await expect(page.locator(".admin-registration > summary")).toContainText(
+    "2026年度の登録状況",
+  );
   const reader = await browser.newContext();
   try {
     await login(reader, request, "other");
@@ -396,9 +396,9 @@ test("年度別データの読込失敗・再試行・連続切替と年度違�
       ),
     ).toBeTruthy();
   }
-  await expect(
-    page.getByText("対象年度：2026年度", { exact: true }),
-  ).toBeVisible();
+  await expect(page.locator(".admin-registration > summary")).toContainText(
+    "2026年度の登録状況",
+  );
 });
 
 test("管理タブの視認性・全幅配置・キーボード操作と集計条件の保持", async ({
