@@ -4,25 +4,7 @@ import { useRouter } from "next/navigation";
 import type { Ballot, Poll, Profile, Video } from "@/lib/types";
 import { jst } from "@/lib/validation";
 import { TallyPanel } from "@/components/tally-panel";
-import type { TallyResult } from "@/lib/tally";
-type Ranking = {
-  award_code: string;
-  award_name: string;
-  video_id: string;
-  title: string;
-  author_name: string;
-  votes: number;
-  rank: number;
-};
-type Detail = {
-  award_name: string;
-  video_id: string;
-  title: string;
-  display_name: string;
-  nico_user_id: string;
-  comment: string;
-  submitted_at: string;
-};
+import type { AdminTallyResult } from "@/lib/tally";
 type Preview = {
   token: string;
   active: number;
@@ -49,11 +31,9 @@ export function AdminDashboard({
   ballots,
   audit,
 }: {
-  initialTally: TallyResult;
+  initialTally: AdminTallyResult;
   report: {
     stats: Record<string, number>;
-    rankings: Ranking[];
-    details: Detail[];
   };
   poll: Poll;
   years: Poll[];
@@ -70,7 +50,6 @@ export function AdminDashboard({
 }) {
   const router = useRouter(),
     [tab, setTab] = useState("excel"),
-    [award, setAward] = useState("overall"),
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false),
     [file, setFile] = useState<File | null>(null),
@@ -225,21 +204,28 @@ export function AdminDashboard({
         </details>
       </section>
       <p className="muted">
-        {tab === "excel"
-          ? "集計結果は運営者限定です。過去フォームの集計は暫定として表示します。"
-          : "集計対象は確定済み投票のみ。明細・感想は運営者限定です。"}
+        集計・明細は運営者限定です。過去フォームの回答は暫定集計、サイトの投票は確定済みのみを集計します。
       </p>
+      <p className="muted">{poll.year}年度の登録状況</p>
       <div className="admin-stats">
         {[
           ["videos", "有効作品"],
           ["themed", "テーマ対象"],
           ["google_users", "Google登録者"],
-          ["drafts", "下書き"],
-          ["submitted", "確定投票者"],
+          ["drafts", "サイト下書き"],
+          ["submitted", "サイト確定投票者"],
+          ["historical_ballots", "過去フォーム回答"],
+          ["historical_votes", "過去フォーム票数"],
         ].map(([key, label]) => (
           <div key={key}>
             <span>{label}</span>
-            <strong>{report.stats[key]}</strong>
+            <strong>
+              {key === "historical_ballots"
+                ? initialTally.historical_ballot_count
+                : key === "historical_votes"
+                  ? initialTally.historical_selection_count
+                  : report.stats[key]}
+            </strong>
           </div>
         ))}
       </div>
@@ -264,101 +250,11 @@ export function AdminDashboard({
       <p role="status" className="form-message">
         {message}
       </p>
-      {tab === "ranking" && (
-        <>
-          <div className="admin-toolbar">
-            <select
-              aria-label="集計部門"
-              value={award}
-              onChange={(e) => setAward(e.target.value)}
-            >
-              {Array.from(
-                new Map(
-                  report.rankings.map((r) => [r.award_code, r.award_name]),
-                ).entries(),
-              ).map(([code, name]) => (
-                <option key={code} value={code}>
-                  {name}
-                </option>
-              ))}
-            </select>
-            <a
-              className="button secondary small"
-              href={`/api/admin/export?type=ranking&year=${poll.year}`}
-            >
-              ランキングCSV ↓
-            </a>
-            <a
-              className="button secondary small"
-              href={`/api/admin/export?type=details&year=${poll.year}`}
-            >
-              投票明細CSV ↓
-            </a>
-          </div>
-          <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>順位</th>
-                  <th>作品</th>
-                  <th>投稿者</th>
-                  <th>得票数</th>
-                </tr>
-              </thead>
-              <tbody>
-                {report.rankings
-                  .filter((r) => r.award_code === award)
-                  .map((r) => (
-                    <tr key={r.video_id}>
-                      <td>{r.rank}</td>
-                      <td>
-                        {r.title}
-                        <small>{r.video_id}</small>
-                      </td>
-                      <td>{r.author_name}</td>
-                      <td>{r.votes}</td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
-          <h2>確定済み投票の感想・明細</h2>
-          <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>部門・作品</th>
-                  <th>投票者</th>
-                  <th>感想</th>
-                  <th>確定日時</th>
-                </tr>
-              </thead>
-              <tbody>
-                {report.details.map((d, i) => (
-                  <tr key={i}>
-                    <td>
-                      {d.award_name}
-                      <small>{d.title}</small>
-                    </td>
-                    <td>
-                      {d.display_name}
-                      <small>ID: {d.nico_user_id}</small>
-                    </td>
-                    <td className="comment-cell">
-                      {d.comment || "（未入力）"}
-                    </td>
-                    <td>{jst(d.submitted_at)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
-      {tab === "excel" && (
+      {(tab === "excel" || tab === "ranking") && (
         <TallyPanel
           years={years.map((y) => y.year)}
           initialResult={initialTally}
+          showDetails={tab === "ranking"}
         />
       )}
       {tab === "videos" && (

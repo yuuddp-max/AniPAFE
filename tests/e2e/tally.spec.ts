@@ -134,6 +134,11 @@ test("Excel集計：権限・原本1206明細のページング・年度独立�
   expect(exported.headers()["content-type"]).toContain("text/csv");
   expect(await exported.text()).toContain("'=Excel集計テスト");
   expect(await exported.text()).toContain("未確認");
+  const switched = await page.request.post("/api/admin", {
+    headers,
+    data: { action: "switch_year", year: 2026, target_year: 2025 },
+  });
+  expect(switched.ok(), await switched.text()).toBeTruthy();
   await page.goto("/admin");
   await expect(
     page.getByRole("button", { name: "集計結果", exact: true }),
@@ -151,8 +156,42 @@ test("Excel集計：権限・原本1206明細のページング・年度独立�
     panel.getByRole("cell", { name: "1206～1207", exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByText("対象年度：2026年度", { exact: true }),
+    page.getByText("対象年度：2025年度", { exact: true }),
   ).toBeVisible();
+  await expect(
+    page.locator(".admin-stats > div").filter({ hasText: "過去フォーム回答" }),
+  ).toContainText("201");
+  await expect(
+    page.locator(".admin-stats > div").filter({ hasText: "過去フォーム票数" }),
+  ).toContainText("1206");
+  await page.getByRole("button", { name: "集計・明細", exact: true }).click();
+  await expect(panel.getByLabel("集計結果の概要")).toContainText(
+    "201回答／1206票",
+  );
+  await expect(
+    panel.getByRole("cell", { name: "1206～1207", exact: true }),
+  ).toBeVisible();
+  const detailSection = panel.getByRole("region", { name: "投票明細・感想" });
+  await expect(detailSection).toContainText("1206明細");
+  await expect(detailSection.locator("tbody tr")).toHaveCount(50);
+  await expect(detailSection).toContainText("原本の回答者");
+  await detailSection.getByRole("button", { name: "次の50明細" }).click();
+  await expect(detailSection).toContainText("2 / 25ページ");
+  const oldRanking = await page.request.get(
+    "/api/admin/export?year=2025&type=ranking",
+  );
+  expect(oldRanking.ok()).toBeTruthy();
+  expect(await oldRanking.text()).toContain('"1206"');
+  const oldDetails = await page.request.get(
+    "/api/admin/export?year=2025&type=details",
+  );
+  expect(oldDetails.ok()).toBeTruthy();
+  expect(await oldDetails.text()).toContain("原本の回答者");
+  expect((await oldDetails.text()).split("\r\n")).toHaveLength(1207);
+  const detailExport = await page.request.get(endpoint + "&format=details");
+  expect(detailExport.ok()).toBeTruthy();
+  expect(await detailExport.text()).toBe(await oldDetails.text());
+  await page.getByRole("button", { name: "集計結果", exact: true }).click();
   await panel.getByLabel("表示内容").selectOption("score");
   await expect(panel.locator("caption")).toContainText("分母143");
   await expect(
@@ -185,6 +224,13 @@ test("Excel集計：権限・原本1206明細のページング・年度独立�
     await login(reader, request, "other");
     const other = await reader.request.get(new URL(endpoint, page.url()).href);
     expect(other.status()).toBe(403);
+    expect(
+      (
+        await reader.request.get(
+          new URL(endpoint + "&format=details", page.url()).href,
+        )
+      ).status(),
+    ).toBe(403);
   } finally {
     await reader.close();
   }

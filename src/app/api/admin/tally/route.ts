@@ -9,7 +9,8 @@ const querySchema = z.object({
   year: z.coerce.number().int().min(2000).max(2100),
   source: z.enum(["site", "historical"]),
   denominator: z.coerce.number().int().min(1).max(100000).default(143),
-  format: z.enum(["json", "ranking", "score"]).default("json"),
+  format: z.enum(["json", "ranking", "score", "details"]).default("json"),
+  include_details: z.enum(["0", "1"]).default("0"),
 });
 export async function GET(request: Request) {
   return handle(async () => {
@@ -29,6 +30,7 @@ export async function GET(request: Request) {
       input.year,
       input.source,
       input.denominator,
+      input.include_details === "1" || input.format === "details",
     );
     if (input.format === "json") return result;
     return new Response(csv(tallyCsvRows(result, input.format)), {

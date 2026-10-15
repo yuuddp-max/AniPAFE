@@ -1,20 +1,24 @@
 "use client";
 import { useRef, useState } from "react";
-import { tallyAwards, type TallyResult } from "@/lib/tally";
+import { tallyAwards, type AdminTallyResult } from "@/lib/tally";
+import { jst } from "@/lib/validation";
 
 export function TallyPanel({
   years,
   initialResult,
+  showDetails = false,
 }: {
   years: number[];
-  initialResult: TallyResult;
+  initialResult: AdminTallyResult;
+  showDetails?: boolean;
 }) {
   const [year, setYear] = useState(initialResult.year);
   const [source, setSource] = useState(initialResult.source);
   const [denominator, setDenominator] = useState(
     String(initialResult.score_denominator),
   );
-  const [result, setResult] = useState<TallyResult | null>(initialResult);
+  const [result, setResult] = useState<AdminTallyResult | null>(initialResult);
+  const [detailPage, setDetailPage] = useState(0);
   const [award, setAward] = useState("overall");
   const [view, setView] = useState("ranking");
   const [busy, setBusy] = useState(false);
@@ -23,6 +27,7 @@ export function TallyPanel({
   function clear() {
     requestId.current++;
     setResult(null);
+    setDetailPage(0);
     setError("");
     setBusy(false);
   }
@@ -36,13 +41,17 @@ export function TallyPanel({
         year: String(year),
         source,
         denominator,
+        include_details: "1",
       });
       const response = await fetch(`/api/admin/tally?${query}`, {
         signal: AbortSignal.timeout(40000),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
-      if (id === requestId.current) setResult(data);
+      if (id === requestId.current) {
+        setResult(data);
+        setDetailPage(0);
+      }
     } catch (e) {
       if (id === requestId.current) setError((e as Error).message);
     } finally {
@@ -183,6 +192,14 @@ export function TallyPanel({
             >
               スコアCSV ↓
             </a>
+            {showDetails && (
+              <a
+                className="button secondary small"
+                href={`/api/admin/tally?${exportQuery}&format=details`}
+              >
+                投票明細CSV ↓
+              </a>
+            )}
           </div>
           {result.ballot_count === 0 && (
             <p>この年度・集計元の投票データはありません。</p>
@@ -270,6 +287,76 @@ export function TallyPanel({
                 </tbody>
               </table>
             </div>
+          )}
+          {showDetails && (
+            <section aria-label="投票明細・感想">
+              <h2>{result.year}年度の投票明細・感想</h2>
+              <p>
+                {result.source === "historical"
+                  ? "過去フォーム原本（暫定）"
+                  : "サイト確定票"}
+                ：{result.details?.length ?? 0}
+                明細（作品選択なしの感想を含む）。投票者情報・感想は運営者限定です。
+              </p>
+              <div className="admin-toolbar">
+                <button
+                  className="button secondary small"
+                  disabled={detailPage === 0}
+                  onClick={() => setDetailPage((p) => p - 1)}
+                >
+                  前の50明細
+                </button>
+                <span>
+                  {detailPage + 1} /{" "}
+                  {Math.max(1, Math.ceil((result.details?.length ?? 0) / 50))}
+                  ページ
+                </span>
+                <button
+                  className="button secondary small"
+                  disabled={
+                    (detailPage + 1) * 50 >= (result.details?.length ?? 0)
+                  }
+                  onClick={() => setDetailPage((p) => p + 1)}
+                >
+                  次の50明細
+                </button>
+              </div>
+              <div className="table-scroll">
+                <table>
+                  <caption>
+                    投票明細（全{result.details?.length ?? 0}件）
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th>部門・作品</th>
+                      <th>投票者</th>
+                      <th>感想</th>
+                      <th>投票日時</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.details
+                      ?.slice(detailPage * 50, (detailPage + 1) * 50)
+                      .map((d) => (
+                        <tr key={d.id}>
+                          <td>
+                            {d.award_name}
+                            <small>{d.title}</small>
+                          </td>
+                          <td>
+                            {d.display_name}
+                            <small>ID: {d.nico_user_id || "未記入"}</small>
+                          </td>
+                          <td className="comment-cell">
+                            {d.comment || "（未入力）"}
+                          </td>
+                          <td>{jst(d.timestamp)}</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
           )}
         </>
       )}

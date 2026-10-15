@@ -1,4 +1,5 @@
 import type { AwardCode } from "./types";
+import { jst } from "./validation";
 
 export const tallyAwards: {
   code: AwardCode;
@@ -61,6 +62,22 @@ export type TallyResult = {
   warnings: string[];
   rankings: TallyRow[];
   scores: TallyScore[];
+};
+export type TallyDetail = {
+  id: string;
+  award_name: string;
+  video_id: string | null;
+  title: string;
+  display_name: string;
+  nico_user_id: string;
+  comment: string;
+  timestamp: string | null;
+  source_timestamp: string | null;
+};
+export type AdminTallyResult = TallyResult & {
+  historical_ballot_count: number;
+  historical_selection_count: number;
+  details?: TallyDetail[];
 };
 const mainAwards: AwardCode[] = [
   "overall",
@@ -301,9 +318,38 @@ export function tally(input: {
 }
 
 export function tallyCsvRows(
-  result: TallyResult,
-  type: "ranking" | "score",
+  result: TallyResult & { details?: TallyDetail[] },
+  type: "ranking" | "score" | "details",
 ): unknown[][] {
+  if (type === "details") {
+    if (!result.details) throw new Error("投票明細が読み込まれていません。");
+    return [
+      [
+        "部門",
+        "作品ID",
+        "作品名",
+        "投票者表示名",
+        "ニコニコユーザーID",
+        "コメント",
+        "投票時刻（JST）",
+        "元の日時表記",
+        "年度",
+        "集計元",
+      ],
+      ...result.details.map((d) => [
+        d.award_name,
+        d.video_id,
+        d.title,
+        d.display_name,
+        d.nico_user_id,
+        d.comment,
+        jst(d.timestamp),
+        d.source_timestamp,
+        result.year,
+        result.source,
+      ]),
+    ];
+  }
   if (type === "score")
     return [
       [
