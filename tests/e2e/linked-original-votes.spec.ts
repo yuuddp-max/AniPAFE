@@ -68,9 +68,7 @@ test("紐付け原本：全作品の3列カード・選択と感想・原本の�
       writes++;
   });
   await page.goto("/vote/overall");
-  await expect(page.locator(".vote-status")).toContainText(
-    "紐付け済みの原本を表示中",
-  );
+  await expect(page.locator(".vote-status")).toHaveCount(0);
   const nav = page.getByRole("navigation", { name: "投票部門" });
   await expect(nav.getByRole("link", { name: /総合賞/ })).toContainText(
     "10/10",

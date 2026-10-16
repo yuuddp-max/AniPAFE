@@ -115,11 +115,10 @@ export function VoteShell({ children }: { children: React.ReactNode }) {
           </p>
         </div>
       )}
-      <div className="vote-status" role="status">
-        <span>
-          {original
-            ? "✓ 紐付け済みの原本を表示中"
-            : submitted
+      {!original && (
+        <div className="vote-status" role="status">
+          <span>
+            {submitted
               ? "✓ 投票は確定済みです"
               : state === "saved"
                 ? "✓ 下書きを保存済み"
@@ -128,15 +127,14 @@ export function VoteShell({ children }: { children: React.ReactNode }) {
                   : state === "saving"
                     ? "◌ 下書きを保存中…"
                     : "! 下書きの保存に失敗しました"}
-        </span>
-        <span>
-          {original
-            ? "原本の選択・感想は閲覧のみです。"
-            : submitted
+          </span>
+          <span>
+            {submitted
               ? "確定後の修正は運営へお問い合わせください。"
               : "感想は任意です。選択内容は自動保存されます。"}
-        </span>
-      </div>
+          </span>
+        </div>
+      )}
       {state === "error" && (
         <div className="error save-error" role="alert">
           {message}
