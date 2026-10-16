@@ -6,18 +6,10 @@ import { VideoImage } from "./video-image";
 import { OtherAwards } from "./other-awards";
 import { pollIsOpen } from "@/lib/validation";
 import type { AwardCode, Video } from "@/lib/types";
-import { LinkedOriginalVotes } from "./linked-original-votes";
+import { isOriginalSelection } from "@/lib/original-votes";
 const PAGE_SIZE = 12;
 export function VoteScreen({ code }: { code: AwardCode }) {
-  const { original } = useVotes();
-  return original ? (
-    <LinkedOriginalVotes code={code} />
-  ) : (
-    <SiteVoteScreen code={code} />
-  );
-}
-function SiteVoteScreen({ code }: { code: AwardCode }) {
-  const { data, entries, change, submitted } = useVotes(),
+  const { data, entries, change, submitted, original } = useVotes(),
     award = data.awards.find((a) => a.code === code)!;
   const [search, setSearch] = useState(""),
     [query, setQuery] = useState(""),
@@ -39,19 +31,29 @@ function SiteVoteScreen({ code }: { code: AwardCode }) {
     const t = setInterval(() => setNow(Date.now()), 30000);
     return () => clearInterval(t);
   }, []);
-  const selected = entries.filter((e) => e.award_code === code),
-    selectedIds = new Set(selected.map((e) => e.video_id)),
-    overLimit = selected.length > award.max_votes,
+  const displayedEntries = original?.entries ?? entries,
+    originalEntries =
+      original?.entries.filter((e) => e.award_code === code) ?? [],
+    selected = entries.filter((e) => e.award_code === code),
+    selectedCount = original
+      ? originalEntries.filter(isOriginalSelection).length
+      : selected.length,
+    selectedIds = new Set(
+      displayedEntries
+        .filter((e) => e.award_code === code)
+        .map((e) => e.video_id),
+    ),
+    overLimit = !original && selectedCount > award.max_votes,
     open = pollIsOpen(data.poll, now),
-    disabled = submitted || !open;
+    disabled = !!original || submitted || !open;
   const videoMap = useMemo(
     () => new Map(data.videos.map((v) => [v.video_id, v])),
     [data.videos],
   );
   const otherAwardsByVideo = useMemo(() => {
     const selectedByVideo = new Map<string, Set<AwardCode>>();
-    for (const entry of entries) {
-      if (entry.award_code === code) continue;
+    for (const entry of displayedEntries) {
+      if (entry.award_code === code || !entry.video_id) continue;
       const codes = selectedByVideo.get(entry.video_id) ?? new Set<AwardCode>();
       codes.add(entry.award_code);
       selectedByVideo.set(entry.video_id, codes);
@@ -64,7 +66,7 @@ function SiteVoteScreen({ code }: { code: AwardCode }) {
           .sort((a, b) => a.display_order - b.display_order),
       ]),
     );
-  }, [entries, code, data.awards]);
+  }, [displayedEntries, code, data.awards]);
   const videos = useMemo(
     () =>
       data.videos
@@ -77,7 +79,7 @@ function SiteVoteScreen({ code }: { code: AwardCode }) {
                 .includes(query.toLocaleLowerCase())) &&
             (filter !== "theme" || !!v.theme) &&
             (filter !== "selected" ||
-              entries.some(
+              displayedEntries.some(
                 (e) => e.award_code === code && e.video_id === v.video_id,
               )),
         )
@@ -89,7 +91,7 @@ function SiteVoteScreen({ code }: { code: AwardCode }) {
               ? a.author_name.localeCompare(b.author_name, "ja")
               : a.display_order - b.display_order,
         ),
-    [data.videos, code, query, filter, sort, entries],
+    [data.videos, code, query, filter, sort, displayedEntries],
   );
   const maxPage = Math.max(1, Math.ceil(videos.length / PAGE_SIZE)),
     actualPage = Math.min(page, maxPage);
@@ -124,10 +126,17 @@ function SiteVoteScreen({ code }: { code: AwardCode }) {
   }
   return (
     <main id="main" className="vote-main">
-      {!open && !submitted && (
-        <div className="notice" role="status">
-          現在は投票期間外です。作品と保存済みの内容を確認できますが、選択・保存・確定はできません。
+      {original ? (
+        <div className="notice">
+          過去フォーム原本の選択作品と感想を表示しています。原本は閲覧専用です。
         </div>
+      ) : (
+        !open &&
+        !submitted && (
+          <div className="notice" role="status">
+            現在は投票期間外です。作品と保存済みの内容を確認できますが、選択・保存・確定はできません。
+          </div>
+        )
       )}
       <div className="workspace">
         <section className="catalog">
@@ -250,6 +259,7 @@ function SiteVoteScreen({ code }: { code: AwardCode }) {
                   .slice((actualPage - 1) * PAGE_SIZE, actualPage * PAGE_SIZE)
                   .map((v) => {
                     const own =
+                        !original &&
                         v.author_nico_user_id === data.profile.nico_user_id,
                       chosen = selectedIds.has(v.video_id);
                     return (
@@ -323,77 +333,116 @@ function SiteVoteScreen({ code }: { code: AwardCode }) {
           <div className="selected-heading">
             <span>選択中の作品</span>
             <strong>
-              {selected.length}
+              {selectedCount}
               <small> / {award.max_votes}</small>
             </strong>
           </div>
           <div className="progress-track">
             <span
               style={{
-                width: `${Math.min(100, (selected.length / award.max_votes) * 100)}%`,
+                width: `${Math.min(100, (selectedCount / award.max_votes) * 100)}%`,
               }}
             />
           </div>
           <p className="selection-guide" role="status">
-            {selected.length < award.min_votes
-              ? `あと${award.min_votes - selected.length}作品で必要数を満たします。`
-              : overLimit
-                ? `上限を${selected.length - award.max_votes}作品超えています。確定前に${selected.length - award.max_votes}作品の選択を解除してください。`
-                : selected.length === award.max_votes
-                  ? "上限の作品数を選択中です。さらに選び、確定前に絞り込むこともできます。"
-                  : "必要数を満たしました。さらに選ぶこともできます。"}
+            {original
+              ? "原本に記録された作品と感想です。"
+              : selected.length < award.min_votes
+                ? `あと${award.min_votes - selected.length}作品で必要数を満たします。`
+                : overLimit
+                  ? `上限を${selected.length - award.max_votes}作品超えています。確定前に${selected.length - award.max_votes}作品の選択を解除してください。`
+                  : selected.length === award.max_votes
+                    ? "上限の作品数を選択中です。さらに選び、確定前に絞り込むこともできます。"
+                    : "必要数を満たしました。さらに選ぶこともできます。"}
           </p>
-          {!selected.length && (
-            <div className="selection-empty">
-              <span aria-hidden="true">✦</span>
-              <p>
-                心に残った作品を
-                <br />
-                「選ぶ」で追加してください。
-              </p>
-            </div>
-          )}
-          {selected.map((e) => {
-            const v = videoMap.get(e.video_id);
-            return (
-              <div className="selected-item" key={e.video_id}>
-                <div>
-                  <span>{v?.display_order.toString().padStart(3, "0")}</span>
-                  <h3>{v?.title ?? e.video_id}</h3>
-                  <button
-                    aria-label={`${v?.title ?? e.video_id}の選択を解除`}
-                    disabled={disabled}
-                    onClick={() => removeSelection(e.video_id)}
-                  >
-                    ×
-                  </button>
-                </div>
-                <label>
-                  <span>
-                    この作品への感想 <small>任意</small>
-                  </span>
-                  <textarea
-                    aria-label={`${v?.title ?? e.video_id}への感想`}
-                    value={e.comment}
-                    maxLength={1000}
-                    disabled={disabled}
-                    rows={3}
-                    placeholder="心に残ったところを、ひとこと。"
-                    onChange={(event) =>
-                      change(
-                        entries.map((x) =>
-                          x === e ? { ...x, comment: event.target.value } : x,
-                        ),
-                      )
-                    }
-                  />
-                  <small className="comment-count">
-                    {e.comment.length}/1000
-                  </small>
-                </label>
+          {original && originalEntries.length === 0 ? (
+            <p className="selection-empty">この部門の回答はありません。</p>
+          ) : (
+            !original &&
+            !selected.length && (
+              <div className="selection-empty">
+                <span aria-hidden="true">✦</span>
+                <p>
+                  心に残った作品を
+                  <br />
+                  「選ぶ」で追加してください。
+                </p>
               </div>
-            );
-          })}
+            )
+          )}
+          {original
+            ? originalEntries.map((e) => (
+                <div className="selected-item" key={e.id}>
+                  <div>
+                    <span>
+                      {e.source_video_number?.toString().padStart(3, "0") ??
+                        "—"}
+                    </span>
+                    <h3>{e.title}</h3>
+                  </div>
+                  {!isOriginalSelection(e) && (
+                    <p className="muted">感想のみの回答です。</p>
+                  )}
+                  {!e.video_id && isOriginalSelection(e) && (
+                    <p className="muted">原本の作品情報で表示しています。</p>
+                  )}
+                  <label>
+                    <span>この作品への感想</span>
+                    <textarea
+                      aria-label={`${e.title}への感想`}
+                      value={e.comment}
+                      readOnly
+                      rows={3}
+                      placeholder="感想は未入力です。"
+                    />
+                  </label>
+                </div>
+              ))
+            : selected.map((e) => {
+                const v = videoMap.get(e.video_id);
+                return (
+                  <div className="selected-item" key={e.video_id}>
+                    <div>
+                      <span>
+                        {v?.display_order.toString().padStart(3, "0")}
+                      </span>
+                      <h3>{v?.title ?? e.video_id}</h3>
+                      <button
+                        aria-label={`${v?.title ?? e.video_id}の選択を解除`}
+                        disabled={disabled}
+                        onClick={() => removeSelection(e.video_id)}
+                      >
+                        ×
+                      </button>
+                    </div>
+                    <label>
+                      <span>
+                        この作品への感想 <small>任意</small>
+                      </span>
+                      <textarea
+                        aria-label={`${v?.title ?? e.video_id}への感想`}
+                        value={e.comment}
+                        maxLength={1000}
+                        disabled={disabled}
+                        rows={3}
+                        placeholder="心に残ったところを、ひとこと。"
+                        onChange={(event) =>
+                          change(
+                            entries.map((x) =>
+                              x === e
+                                ? { ...x, comment: event.target.value }
+                                : x,
+                            ),
+                          )
+                        }
+                      />
+                      <small className="comment-count">
+                        {e.comment.length}/1000
+                      </small>
+                    </label>
+                  </div>
+                );
+              })}
           {selected.length > 0 && !disabled && (
             <button
               className="text-button clear-button"
@@ -414,7 +463,7 @@ function SiteVoteScreen({ code }: { code: AwardCode }) {
         href="#selected"
         className={`mobile-selection${overLimit ? " over-limit" : ""}`}
       >
-        {award.name}　{selected.length}/{award.max_votes}作品{" "}
+        {award.name}　{selectedCount}/{award.max_votes}作品{" "}
         <span>選択一覧へ ↑</span>
       </a>
       {player && <Player video={player} close={() => setPlayer(null)} />}

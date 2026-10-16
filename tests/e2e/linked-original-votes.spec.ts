@@ -50,7 +50,7 @@ test.beforeEach(async ({ context, page, request }) => {
   await login(context, request, "voter");
 });
 
-test("紐付け原本：全6部門の件数・作品・感想、原本のみの作品、閲覧専用、スマートフォン", async ({
+test("紐付け原本：全作品の3列カード・選択と感想・原本のみの作品・閲覧専用・スマートフォン", async ({
   page,
   request,
 }) => {
@@ -68,7 +68,7 @@ test("紐付け原本：全6部門の件数・作品・感想、原本のみの�
       writes++;
   });
   await page.goto("/vote/overall");
-  await expect(page.getByRole("status")).toContainText(
+  await expect(page.locator(".vote-status")).toContainText(
     "紐付け済みの原本を表示中",
   );
   const nav = page.getByRole("navigation", { name: "投票部門" });
@@ -85,29 +85,52 @@ test("紐付け原本：全6部門の件数・作品・感想、原本のみの�
     await expect(
       nav.getByRole("link", { name: new RegExp(name) }),
     ).toContainText("3/3");
-  await expect(
-    page.getByRole("region", { name: "総合賞の原本投票" }).locator("article"),
-  ).toHaveCount(10);
+  await expect(page.locator(".catalog-total")).toHaveText("107作品");
+  await expect(page.locator(".video-card")).toHaveCount(12);
+  await expect(page.locator(".video-card.chosen")).toHaveCount(9);
+  await expect(page.locator(".selected-item")).toHaveCount(10);
+  expect(
+    await page
+      .locator(".video-grid")
+      .evaluate(
+        (element) =>
+          getComputedStyle(element).gridTemplateColumns.split(" ").length,
+      ),
+  ).toBe(3);
   await expect(page.getByText("原本のみの作品", { exact: true })).toBeVisible();
-  await expect(
-    page.getByText(
-      "本人の原本感想 overall 1 <script>window.ORIGINAL_XSS=1</script>",
-      { exact: true },
-    ),
-  ).toBeVisible();
+  const comments = page.locator(".selected-item textarea");
+  await expect(comments.first()).toHaveValue(
+    "本人の原本感想 overall 1 <script>window.ORIGINAL_XSS=1</script>",
+  );
+  for (const comment of await comments.all())
+    await expect(comment).toHaveJSProperty("readOnly", true);
   await expect(page.getByText("他人だけの秘密")).toHaveCount(0);
+  for (const button of await page.locator(".select-button").all())
+    await expect(button).toBeDisabled();
   await expect(
-    page.getByRole("button", { name: /選ぶ|選択を解除|投票を確定/ }),
+    page.getByRole("button", { name: /選択を解除|投票を確定/ }),
   ).toHaveCount(0);
+  await page.getByRole("button", { name: "次の作品ページ" }).click();
+  await expect(page.locator(".catalog-page-summary")).toContainText(
+    "作品ページ 2 / 9",
+  );
+  await expect(page.locator(".video-card")).toHaveCount(12);
+  await expect(page.locator(".video-card.chosen")).toHaveCount(0);
+  await page
+    .getByRole("combobox", { name: "絞り込み", exact: true })
+    .selectOption("selected");
+  await expect(page.locator(".video-card")).toHaveCount(9);
+  await expect(page.locator(".catalog-total")).toHaveText("9作品");
+  await expect(page.locator(".selected-item")).toHaveCount(10);
   expect(
     await page.evaluate(
       () => (window as unknown as { ORIGINAL_XSS?: number }).ORIGINAL_XSS,
     ),
   ).toBeUndefined();
   await nav.getByRole("link", { name: /選曲賞/ }).click();
-  await expect(
-    page.getByRole("region", { name: "選曲賞の原本投票" }).locator("article"),
-  ).toHaveCount(3);
+  await expect(page.locator(".video-card")).toHaveCount(12);
+  await expect(page.locator(".video-card.chosen")).toHaveCount(3);
+  await expect(page.locator(".selected-item")).toHaveCount(3);
   await page.getByRole("link", { name: "原本の投票内容を確認 →" }).click();
   await expect(
     page.getByRole("heading", { name: "紐付け済みの投票内容" }),
@@ -118,6 +141,9 @@ test("紐付け原本：全6部門の件数・作品・感想、原本のみの�
     "10/10",
   );
   await page.setViewportSize({ width: 390, height: 844 });
+  await nav.getByRole("link", { name: /総合賞/ }).click();
+  await expect(page.locator(".video-card")).toHaveCount(12);
+  await expect(page.locator(".selected-item")).toHaveCount(10);
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
