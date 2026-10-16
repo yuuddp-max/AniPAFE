@@ -3,18 +3,33 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useVotes } from "./vote-provider";
 import { jst } from "@/lib/validation";
+import { isOriginalSelection } from "@/lib/original-votes";
 export function VoteShell({ children }: { children: React.ReactNode }) {
-  const { data, entries, state, message, save, submitted } = useVotes();
+  const {
+    data,
+    entries,
+    state,
+    message,
+    save,
+    submitted,
+    original,
+    selectOriginal,
+  } = useVotes();
+  const displayedEntries = original
+    ? original.entries.filter(isOriginalSelection)
+    : entries;
   const path = usePathname();
   const anyOverLimit = data.awards.some(
       (a) =>
-        entries.filter((e) => e.award_code === a.code).length > a.max_votes,
+        displayedEntries.filter((e) => e.award_code === a.code).length >
+        a.max_votes,
     ),
     allReady =
       !anyOverLimit &&
       data.awards.every(
         (a) =>
-          entries.filter((e) => e.award_code === a.code).length >= a.min_votes,
+          displayedEntries.filter((e) => e.award_code === a.code).length >=
+          a.min_votes,
       );
   return (
     <>
@@ -33,48 +48,93 @@ export function VoteShell({ children }: { children: React.ReactNode }) {
             </strong>
           </div>
         </div>
-        {data.awards.some((a) => path === `/vote/${a.code}`) && (
-          <div className="review-action">
-            {allReady && state === "saved" ? (
-              <Link
-                className="button"
-                href={submitted ? "/vote/complete" : "/vote/review"}
-              >
-                {submitted ? "投票結果を確認" : "最終確認へ"} →
+        {data.awards.some((a) => path === `/vote/${a.code}`) &&
+          (original ? (
+            <div className="review-action">
+              <Link className="button" href="/vote/review">
+                原本の投票内容を確認 →
               </Link>
-            ) : (
-              <button className="button" disabled>
-                最終確認へ →
-              </button>
-            )}
-            <small>
-              {anyOverLimit
-                ? "上限を超えている部門の選択を解除すると進めます。"
-                : !allReady
-                  ? "6部門すべての必要数を満たすと進めます。"
-                  : state !== "saved"
-                    ? "下書きの保存完了をお待ちください。"
-                    : "確定する前に、投票内容を確認できます。"}
-            </small>
-          </div>
-        )}
+              <small>原本は閲覧のみです。</small>
+            </div>
+          ) : (
+            <div className="review-action">
+              {allReady && state === "saved" ? (
+                <Link
+                  className="button"
+                  href={submitted ? "/vote/complete" : "/vote/review"}
+                >
+                  {submitted ? "投票結果を確認" : "最終確認へ"} →
+                </Link>
+              ) : (
+                <button className="button" disabled>
+                  最終確認へ →
+                </button>
+              )}
+              <small>
+                {anyOverLimit
+                  ? "上限を超えている部門の選択を解除すると進めます。"
+                  : !allReady
+                    ? "6部門すべての必要数を満たすと進めます。"
+                    : state !== "saved"
+                      ? "下書きの保存完了をお待ちください。"
+                      : "確定する前に、投票内容を確認できます。"}
+              </small>
+            </div>
+          ))}
       </div>
+      {!!data.linkedOriginals?.length && (
+        <div className="notice linked-vote-source">
+          <label>
+            表示する投票
+            <select
+              aria-label="表示する投票"
+              value={original?.id ?? "site"}
+              disabled={state === "saving"}
+              onChange={(event) => void selectOriginal(event.target.value)}
+            >
+              <option value="site">
+                サイトの投票
+                {data.ballot?.status === "submitted"
+                  ? "（確定済み）"
+                  : data.ballot
+                    ? "（下書き）"
+                    : "（未入力）"}
+              </option>
+              {data.linkedOriginals.map((vote) => (
+                <option key={vote.id} value={vote.id}>
+                  過去フォーム原本（回答行 {vote.source_row}・
+                  {vote.source_timestamp}）
+                </option>
+              ))}
+            </select>
+          </label>
+          <p>
+            {original
+              ? "紐付け済みの原本を表示しています。選択作品と感想を確認できます。"
+              : "サイトで保存した投票を表示しています。紐付け済みの原本にも切り替えられます。"}
+          </p>
+        </div>
+      )}
       <div className="vote-status" role="status">
         <span>
-          {submitted
-            ? "✓ 投票は確定済みです"
-            : state === "saved"
-              ? "✓ 下書きを保存済み"
-              : state === "pending"
-                ? "● 未保存の変更があります"
-                : state === "saving"
-                  ? "◌ 下書きを保存中…"
-                  : "! 下書きの保存に失敗しました"}
+          {original
+            ? "✓ 紐付け済みの原本を表示中"
+            : submitted
+              ? "✓ 投票は確定済みです"
+              : state === "saved"
+                ? "✓ 下書きを保存済み"
+                : state === "pending"
+                  ? "● 未保存の変更があります"
+                  : state === "saving"
+                    ? "◌ 下書きを保存中…"
+                    : "! 下書きの保存に失敗しました"}
         </span>
         <span>
-          {submitted
-            ? "確定後の修正は運営へお問い合わせください。"
-            : "感想は任意です。選択内容は自動保存されます。"}
+          {original
+            ? "原本の選択・感想は閲覧のみです。"
+            : submitted
+              ? "確定後の修正は運営へお問い合わせください。"
+              : "感想は任意です。選択内容は自動保存されます。"}
         </span>
       </div>
       {state === "error" && (
@@ -88,8 +148,10 @@ export function VoteShell({ children }: { children: React.ReactNode }) {
       )}
       <nav className="award-tabs" aria-label="投票部門">
         {data.awards.map((a) => {
-          const n = entries.filter((e) => e.award_code === a.code).length,
-            overLimit = n > a.max_votes,
+          const n = displayedEntries.filter(
+              (e) => e.award_code === a.code,
+            ).length,
+            overLimit = !original && n > a.max_votes,
             ready = n >= a.min_votes && !overLimit;
           return (
             <Link
@@ -103,11 +165,13 @@ export function VoteShell({ children }: { children: React.ReactNode }) {
                 aria-live="polite"
                 aria-atomic="true"
                 title={
-                  overLimit
-                    ? `上限を${n - a.max_votes}作品超えています。確定前に選択を解除してください`
-                    : ready
-                      ? "必要票数を満たしています"
-                      : `あと${a.min_votes - n}作品で必要票数を満たします`
+                  original
+                    ? "紐付け済み原本の選択作品数（閲覧のみ）"
+                    : overLimit
+                      ? `上限を${n - a.max_votes}作品超えています。確定前に選択を解除してください`
+                      : ready
+                        ? "必要票数を満たしています"
+                        : `あと${a.min_votes - n}作品で必要票数を満たします`
                 }
               >
                 {overLimit ? "! " : ready ? "✓ " : ""}

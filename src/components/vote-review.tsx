@@ -4,7 +4,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useVotes } from "./vote-provider";
 import { pollIsOpen, jst } from "@/lib/validation";
+import { LinkedOriginalVotes } from "./linked-original-votes";
 export function VoteReview({ complete = false }: { complete?: boolean }) {
+  const { original } = useVotes();
+  return original ? (
+    <LinkedOriginalVotes />
+  ) : (
+    <SiteVoteReview complete={complete} />
+  );
+}
+function SiteVoteReview({ complete = false }: { complete?: boolean }) {
   const { data, entries, save, revision, submitted, markSubmitted, state } =
       useVotes(),
     router = useRouter();

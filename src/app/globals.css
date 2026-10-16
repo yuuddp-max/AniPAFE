@@ -1570,6 +1570,25 @@ img {
   max-width: 920px;
   margin: 45px auto;
 }
+.linked-vote-source {
+  margin: 0 0 16px;
+}
+.linked-vote-source label {
+  display: grid;
+  gap: 8px;
+}
+.linked-vote-source select {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+.linked-vote-source p {
+  margin: 10px 0 0;
+}
+.linked-original-votes .review-award article > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 .review-title {
   text-align: center;
   margin-bottom: 35px;

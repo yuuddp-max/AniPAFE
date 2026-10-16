@@ -114,4 +114,24 @@ export type VoteData = {
   entries: Entry[];
   poll: Poll;
   isAdmin: boolean;
+  linkedOriginals?: LinkedOriginalVote[];
+};
+export type LinkedOriginalEntry = {
+  id: string;
+  award_code: AwardCode;
+  video_id: string | null;
+  source_video_number: number | null;
+  source_video_label: string | null;
+  title: string;
+  author_name: string | null;
+  watch_url: string | null;
+  comment: string;
+};
+export type LinkedOriginalVote = {
+  id: string;
+  year: number;
+  revision: number;
+  source_row: number;
+  source_timestamp: string;
+  entries: LinkedOriginalEntry[];
 };

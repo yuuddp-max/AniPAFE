@@ -11,7 +11,10 @@ export default async function VoteLayout({
   return (
     <>
       <div className="vote-container">
-        <VoteProvider key={data.poll.year} data={data}>
+        <VoteProvider
+          key={`${data.poll.year}:${data.linkedOriginals?.map((vote) => `${vote.id}:${vote.revision}`).join(",") ?? ""}`}
+          data={data}
+        >
           <VoteShell>{children}</VoteShell>
         </VoteProvider>
       </div>

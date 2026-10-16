@@ -107,6 +107,7 @@ const functions = new Set([
   "admin_year_reopen",
   "admin_year_delete_ballot",
   "admin_link_historical_voter",
+  "linked_original_votes",
   "admin_year_profile",
   "admin_year_thumbnail",
   "admin_report",
@@ -170,6 +171,49 @@ const server = createServer(async (req, res) => {
           select 2025,'historical','imported',i+1,'原本回答者 '||i,case when i=1 then '350396' end,'原本日時 '||i,'{"private_original":"do-not-expose"}'::jsonb
           from generate_series(1,1005) i;
       `);
+      return send(200, { ok: true });
+    }
+    if (url.pathname === "/__test/linked-original-votes-state") {
+      const state = await fixture.db.query(`select jsonb_build_object(
+        'ballots',(select md5(string_agg(to_jsonb(b)::text,'' order by id)) from public.data_ballot b),
+        'entries',(select md5(string_agg(to_jsonb(e)::text,'' order by id)) from public.data_ballots e)) as state`);
+      return send(200, state.rows[0]);
+    }
+    if (
+      url.pathname === "/__test/linked-original-votes-seed" &&
+      req.method === "POST"
+    ) {
+      await fixture.db
+        .exec(`insert into public.data_ballot(year,source,status,source_row,display_name,nico_user_id,source_timestamp,raw_response) values
+        (2026,'historical','imported',2,'本人の原本','350396','2026年10月1日 12:00','{"private_original":"never-send-this"}'),
+        (2026,'historical','imported',3,'他人の原本','777771','2026年10月2日 12:00','{}');
+        insert into public.data_ballots(ballot_id,year,source,award_code,slot,video_id,source_video_number,source_video_label,selection_column,comment_column,comment)
+        select b.id,2026,'historical',a.code,s,
+          case when a.code='overall' and s=10 then null else v.video_id end,
+          case when a.code='overall' and s=10 then 999 else v.display_order end,
+          case when a.code='overall' and s=10 then '原本のみの作品' else v.title end,
+          '選択'||s,'感想'||s,
+          case when b.source_row=2 then '本人の原本感想 '||a.code||' '||s||' <script>window.ORIGINAL_XSS=1</script>' else '他人だけの秘密' end
+        from public.data_ballot b cross join (values('overall',10),('music',3),('composition',3),('creative',3),('humor',3),('theme',3)) a(code,n)
+        cross join lateral generate_series(1,a.n) s join public.data_mad v on v.year=2026 and v.display_order=s+1
+        where b.source='historical' and b.source_row in (2,3);`);
+      for (const [row, uid] of [
+        [2, U1],
+        [3, U2],
+      ] as const) {
+        const ballot = (
+          await fixture.db.query<{ id: string }>(
+            "select id from public.data_ballot where source='historical' and source_row=$1",
+            [row],
+          )
+        ).rows[0];
+        await call(
+          fixture.db,
+          ADMIN,
+          "select public.admin_link_historical_voter($1,2026,$2,0,'画面検証')",
+          [ballot.id, uid],
+        );
+      }
       return send(200, { ok: true });
     }
     if (url.pathname === "/__test/dashboard-seed" && req.method === "POST") {

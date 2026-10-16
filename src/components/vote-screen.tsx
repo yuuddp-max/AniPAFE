@@ -6,8 +6,17 @@ import { VideoImage } from "./video-image";
 import { OtherAwards } from "./other-awards";
 import { pollIsOpen } from "@/lib/validation";
 import type { AwardCode, Video } from "@/lib/types";
+import { LinkedOriginalVotes } from "./linked-original-votes";
 const PAGE_SIZE = 12;
 export function VoteScreen({ code }: { code: AwardCode }) {
+  const { original } = useVotes();
+  return original ? (
+    <LinkedOriginalVotes code={code} />
+  ) : (
+    <SiteVoteScreen code={code} />
+  );
+}
+function SiteVoteScreen({ code }: { code: AwardCode }) {
   const { data, entries, change, submitted } = useVotes(),
     award = data.awards.find((a) => a.code === code)!;
   const [search, setSearch] = useState(""),

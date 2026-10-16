@@ -27,6 +27,7 @@ export async function voteData(): Promise<VoteData> {
       .select("auth_user_id")
       .eq("auth_user_id", user.id)
       .maybeSingle(),
+    db.rpc("linked_original_votes", { p_year: poll.year }),
   ]);
   for (const result of results)
     if (result.error)
@@ -53,5 +54,6 @@ export async function voteData(): Promise<VoteData> {
     })),
     poll,
     isAdmin: !!results[4].data,
+    linkedOriginals: results[5].data ?? [],
   };
 }

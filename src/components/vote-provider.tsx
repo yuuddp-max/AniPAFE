@@ -7,7 +7,8 @@ import {
   useState,
   useCallback,
 } from "react";
-import type { Entry, VoteData } from "@/lib/types";
+import type { Entry, LinkedOriginalVote, VoteData } from "@/lib/types";
+import { initialVoteSource } from "@/lib/original-votes";
 type Votes = {
   data: VoteData;
   entries: Entry[];
@@ -18,6 +19,8 @@ type Votes = {
   message: string;
   submitted: boolean;
   markSubmitted: () => void;
+  original: LinkedOriginalVote | null;
+  selectOriginal: (source: string) => Promise<boolean>;
 };
 const Context = createContext<Votes | null>(null);
 export function VoteProvider({
@@ -31,6 +34,9 @@ export function VoteProvider({
     [state, setState] = useState<Votes["state"]>("saved"),
     [message, setMessage] = useState(""),
     [submitted, setSubmitted] = useState(data.ballot?.status === "submitted");
+  const [source, setSource] = useState(() => initialVoteSource(data));
+  const original =
+    data.linkedOriginals?.find((vote) => vote.id === source) ?? null;
   const latest = useRef(data.entries),
     saved = useRef(JSON.stringify(data.entries)),
     revision = useRef(data.ballot?.revision ?? 0),
@@ -86,7 +92,7 @@ export function VoteProvider({
     }
   }, [submitted, data.poll.year]);
   function change(next: Entry[]) {
-    if (submitted) return;
+    if (submitted || original) return;
     latest.current = next;
     setEntries(next);
     setState("pending");
@@ -94,6 +100,16 @@ export function VoteProvider({
     timer.current = setTimeout(() => {
       void save();
     }, 650);
+  }
+  async function selectOriginal(next: string) {
+    if (
+      next !== "site" &&
+      !data.linkedOriginals?.some((vote) => vote.id === next)
+    )
+      return false;
+    if (!(await save())) return false;
+    setSource(next);
+    return true;
   }
   useEffect(() => {
     function warn(e: BeforeUnloadEvent) {
@@ -168,6 +184,8 @@ export function VoteProvider({
         message,
         submitted,
         markSubmitted: () => setSubmitted(true),
+        original,
+        selectOriginal,
       }}
     >
       {children}
