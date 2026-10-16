@@ -137,6 +137,13 @@ test("過去投票者：権限・1005回答の取得・候補・保存/変更/�
   await editor.getByRole("button", { name: "紐付けを保存" }).click();
   await expect(panel.getByRole("status")).toContainText("紐付けを保存しました");
   await expect(panel).toContainText("紐付け済み 1件");
+  const ballotState = async () =>
+    (
+      await (
+        await page.request.get("/api/admin/year-data?year=2025&kind=voters")
+      ).json()
+    ).voters.find((v: { ballot_id: string }) => v.ballot_id === first.id);
+  expect((await ballotState()).voter_id).toBe(userA.user_id);
   expect(
     (
       await page.request.post("/api/admin/historical-voters", {
@@ -160,11 +167,13 @@ test("過去投票者：権限・1005回答の取得・候補・保存/変更/�
   await editor.getByLabel("確認内容・変更理由").fill("紐付け先を訂正");
   await editor.getByRole("button", { name: "紐付けを保存" }).click();
   await expect(panel.locator("tbody")).toContainText("紐付け先B");
+  expect((await ballotState()).voter_id).toBe(userB.user_id);
   await panel.getByRole("button", { name: "紐付けを編集" }).click();
   await editor.getByLabel("確認内容・変更理由").fill("訂正のため解除");
   await editor.getByRole("button", { name: "紐付けを解除" }).click();
   await expect(panel.getByRole("status")).toContainText("紐付けを解除しました");
   await expect(panel).toContainText("紐付け済み 0件");
+  expect((await ballotState()).voter_id).toBeNull();
   const after = await (await page.request.get(endpoint)).json();
   expect(
     after.voters.map(
@@ -251,4 +260,67 @@ test("過去投票者：390pxで編集・検索・年度切替", async ({
   await expect(panel.getByRole("form", { name: "紐付けの編集" })).toHaveCount(
     0,
   );
+});
+
+test("紐付け済み管理者も同年度のサイト投票とプロフィールを開ける", async ({
+  page,
+  context,
+  request,
+}) => {
+  const headers = { Origin: new URL(test.info().project.use.baseURL!).origin };
+  await request.post("http://127.0.0.1:54329/__test/historical-links-seed");
+  await login(context, request, "admin");
+  const data = await (
+    await page.request.get("/api/admin/historical-voters?year=2025")
+  ).json();
+  const admin = data.users.find(
+    (user: { display_name: string }) => user.display_name === "運営テスト",
+  );
+  const linked = await page.request.post("/api/admin/historical-voters", {
+    headers,
+    data: {
+      year: 2025,
+      ballot_id: data.voters[0].id,
+      user_id: admin.user_id,
+      revision: 0,
+      reason: "同年度共存の検証",
+    },
+  });
+  expect(linked.ok(), await linked.text()).toBeTruthy();
+  const switched = await page.request.post("/api/admin", {
+    headers,
+    data: { action: "switch_year", year: 2026, target_year: 2025 },
+  });
+  expect(switched.ok(), await switched.text()).toBeTruthy();
+  const profile = await page.request.post("/api/profile", {
+    headers,
+    data: { display_name: "運営テスト", nico_user_id: "999999992" },
+  });
+  expect(profile.ok(), await profile.text()).toBeTruthy();
+  const voters = await (
+    await page.request.get("/api/admin/year-data?year=2025&kind=voters")
+  ).json();
+  const mine = voters.voters.filter(
+    (v: { voter_id: string | null }) => v.voter_id === admin.user_id,
+  );
+  expect(mine).toHaveLength(2);
+  expect(
+    mine.some((v: { source: string }) => v.source === "site"),
+  ).toBeTruthy();
+  expect(
+    mine.some((v: { source: string }) => v.source === "historical"),
+  ).toBeTruthy();
+  await page.goto("/profile");
+  await expect(
+    page.getByRole("heading", { name: "投票の前に、あなたのこと。" }),
+  ).toBeVisible();
+  await page.goto("/vote/overall");
+  await expect(
+    page.getByRole("heading", { name: "AniPAFE2025", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      "データ取得に失敗しました。Supabaseの設定をご確認ください。",
+    ),
+  ).toHaveCount(0);
 });

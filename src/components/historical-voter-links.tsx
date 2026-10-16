@@ -156,7 +156,7 @@ export function HistoricalVoterLinks({
         </button>
       </div>
       <p className="muted">
-        過去フォーム原本の回答者とログインユーザーを、回答ごとに確認して紐付けます。原本の名前・ID・票、集計結果、本人の閲覧範囲は変わりません。
+        過去フォーム原本の回答者とログインユーザーを、回答ごとに確認して紐付けます。紐付け先を投票データの認証IDにも反映します。原本の名前・ニコニコID・票、本人の閲覧範囲は変わりません。
       </p>
       <div className="historical-link-filters">
         <label>
