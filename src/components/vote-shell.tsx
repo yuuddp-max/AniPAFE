@@ -5,16 +5,8 @@ import { useVotes } from "./vote-provider";
 import { jst } from "@/lib/validation";
 import { isOriginalSelection } from "@/lib/original-votes";
 export function VoteShell({ children }: { children: React.ReactNode }) {
-  const {
-    data,
-    entries,
-    state,
-    message,
-    save,
-    submitted,
-    original,
-    selectOriginal,
-  } = useVotes();
+  const { data, entries, state, message, save, submitted, original } =
+    useVotes();
   const displayedEntries = original
     ? original.entries.filter(isOriginalSelection)
     : entries;
@@ -82,39 +74,6 @@ export function VoteShell({ children }: { children: React.ReactNode }) {
             </div>
           ))}
       </div>
-      {!!data.linkedOriginals?.length && (
-        <div className="notice linked-vote-source">
-          <label>
-            表示する投票
-            <select
-              aria-label="表示する投票"
-              value={original?.id ?? "site"}
-              disabled={state === "saving"}
-              onChange={(event) => void selectOriginal(event.target.value)}
-            >
-              <option value="site">
-                サイトの投票
-                {data.ballot?.status === "submitted"
-                  ? "（確定済み）"
-                  : data.ballot
-                    ? "（下書き）"
-                    : "（未入力）"}
-              </option>
-              {data.linkedOriginals.map((vote) => (
-                <option key={vote.id} value={vote.id}>
-                  過去フォーム原本（回答行 {vote.source_row}・
-                  {vote.source_timestamp}）
-                </option>
-              ))}
-            </select>
-          </label>
-          <p>
-            {original
-              ? "紐付け済みの原本を表示しています。選択作品と感想を確認できます。"
-              : "サイトで保存した投票を表示しています。紐付け済みの原本にも切り替えられます。"}
-          </p>
-        </div>
-      )}
       {!original && (
         <div className="vote-status" role="status">
           <span>

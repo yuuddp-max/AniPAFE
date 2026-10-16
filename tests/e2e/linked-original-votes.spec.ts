@@ -69,6 +69,9 @@ test("紐付け原本：全作品の3列カード・選択と感想・原本の�
   });
   await page.goto("/vote/overall");
   await expect(page.locator(".vote-status")).toHaveCount(0);
+  await expect(
+    page.getByRole("combobox", { name: "表示する投票" }),
+  ).toHaveCount(0);
   const nav = page.getByRole("navigation", { name: "投票部門" });
   await expect(nav.getByRole("link", { name: /総合賞/ })).toContainText(
     "10/10",
@@ -182,11 +185,15 @@ test("紐付け原本：全作品の3列カード・選択と感想・原本の�
   await expect(page.locator(".selected-item")).toHaveCount(10);
   for (const width of [320, 390]) {
     await page.setViewportSize({ width, height: 844 });
-    const mobileSort = await page
-      .getByRole("combobox", { name: "並び替え" })
-      .boundingBox();
-    const mobileToggle = await selectedFilter.boundingBox();
-    expect(Math.abs(mobileSort!.y - mobileToggle!.y)).toBeLessThan(5);
+    const controlGap = await page
+      .locator(".search-row")
+      .evaluate((row) =>
+        Math.abs(
+          row.querySelector("select")!.getBoundingClientRect().y -
+            row.querySelector("button")!.getBoundingClientRect().y,
+        ),
+      );
+    expect(controlGap).toBeLessThan(5);
     await selectedFilter.click();
     await expect(page.locator(".video-card")).toHaveCount(9);
     await page.getByRole("button", { name: "すべて表示", exact: true }).click();
@@ -217,9 +224,7 @@ test("紐付け原本：全作品の3列カード・選択と感想・原本の�
   ).toEqual(before);
 });
 
-test("保存済みサイト票を優先し、原本との切替で上書き・混算しない", async ({
-  page,
-}) => {
+test("保存済みサイト票を優先し、原本で上書き・混算しない", async ({ page }) => {
   const headers = { Origin: new URL(test.info().project.use.baseURL!).origin };
   const saved = await page.request.post("/api/ballot", {
     headers,
@@ -240,7 +245,7 @@ test("保存済みサイト票を優先し、原本との切替で上書き・�
   const nav = page.getByRole("navigation", { name: "投票部門" });
   await expect(
     page.getByRole("combobox", { name: "表示する投票" }),
-  ).toHaveValue("site");
+  ).toHaveCount(0);
   await expect(nav.getByRole("link", { name: /総合賞/ })).toContainText("1/10");
   await expect(page.getByRole("textbox", { name: /感想/ })).toHaveValue(
     "サイトで入力した感想",
@@ -252,20 +257,6 @@ test("保存済みサイト票を優先し、原本との切替で上書き・�
   await expect(page.locator(".video-card.chosen")).toHaveCount(1);
   await page.getByRole("button", { name: "すべて表示", exact: true }).click();
   await expect(page.locator(".video-card")).toHaveCount(12);
-  const original = await page
-    .getByRole("combobox", { name: "表示する投票" })
-    .getByRole("option")
-    .nth(1)
-    .getAttribute("value");
-  await page
-    .getByRole("combobox", { name: "表示する投票" })
-    .selectOption(original!);
-  await expect(nav.getByRole("link", { name: /総合賞/ })).toContainText(
-    "10/10",
-  );
-  await page
-    .getByRole("combobox", { name: "表示する投票" })
-    .selectOption("site");
   await expect(nav.getByRole("link", { name: /総合賞/ })).toContainText("1/10");
   await expect(page.getByRole("textbox", { name: /感想/ })).toHaveValue(
     "サイトで入力した感想",
