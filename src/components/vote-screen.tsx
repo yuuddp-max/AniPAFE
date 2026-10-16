@@ -125,17 +125,10 @@ export function VoteScreen({ code }: { code: AwardCode }) {
   }
   return (
     <main id="main" className="vote-main">
-      {original ? (
-        <div className="notice">
-          過去フォーム原本の選択作品と感想を表示しています。原本は閲覧専用です。
+      {!original && !open && !submitted && (
+        <div className="notice" role="status">
+          現在は投票期間外です。作品と保存済みの内容を確認できますが、選択・保存・確定はできません。
         </div>
-      ) : (
-        !open &&
-        !submitted && (
-          <div className="notice" role="status">
-            現在は投票期間外です。作品と保存済みの内容を確認できますが、選択・保存・確定はできません。
-          </div>
-        )
       )}
       <div className="workspace">
         <section className="catalog">
