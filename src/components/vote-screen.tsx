@@ -13,7 +13,7 @@ export function VoteScreen({ code }: { code: AwardCode }) {
     award = data.awards.find((a) => a.code === code)!;
   const [search, setSearch] = useState(""),
     [query, setQuery] = useState(""),
-    [filter, setFilter] = useState("all"),
+    [selectedOnly, setSelectedOnly] = useState(false),
     [sort, setSort] = useState("order"),
     [page, setPage] = useState(1),
     [slideDirection, setSlideDirection] = useState<"next" | "previous">("next"),
@@ -77,8 +77,7 @@ export function VoteScreen({ code }: { code: AwardCode }) {
               `${v.title} ${v.author_name} ${v.video_id}`
                 .toLocaleLowerCase()
                 .includes(query.toLocaleLowerCase())) &&
-            (filter !== "theme" || !!v.theme) &&
-            (filter !== "selected" ||
+            (!selectedOnly ||
               displayedEntries.some(
                 (e) => e.award_code === code && e.video_id === v.video_id,
               )),
@@ -91,7 +90,7 @@ export function VoteScreen({ code }: { code: AwardCode }) {
               ? a.author_name.localeCompare(b.author_name, "ja")
               : a.display_order - b.display_order,
         ),
-    [data.videos, code, query, filter, sort, displayedEntries],
+    [data.videos, code, query, selectedOnly, sort, displayedEntries],
   );
   const maxPage = Math.max(1, Math.ceil(videos.length / PAGE_SIZE)),
     actualPage = Math.min(page, maxPage);
@@ -170,21 +169,6 @@ export function VoteScreen({ code }: { code: AwardCode }) {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </label>
-            <label className="sr-only" htmlFor="filter">
-              絞り込み
-            </label>
-            <select
-              id="filter"
-              value={filter}
-              onChange={(e) => {
-                setFilter(e.target.value);
-                setPage(1);
-              }}
-            >
-              <option value="all">すべて</option>
-              <option value="selected">選択中の作品</option>
-              {code !== "theme" && <option value="theme">テーマあり</option>}
-            </select>
             <label className="sr-only" htmlFor="sort">
               並び替え
             </label>
@@ -200,6 +184,17 @@ export function VoteScreen({ code }: { code: AwardCode }) {
               <option value="newest">投稿日順</option>
               <option value="author">投稿者名順</option>
             </select>
+            <button
+              type="button"
+              className="selected-filter"
+              aria-pressed={selectedOnly}
+              onClick={() => {
+                setSelectedOnly((current) => !current);
+                setPage(1);
+              }}
+            >
+              {selectedOnly ? "すべて表示" : "選択の作品を表示"}
+            </button>
           </div>
           <div className="catalog-page-summary">
             <span aria-live="polite" aria-atomic="true">
@@ -252,7 +247,7 @@ export function VoteScreen({ code }: { code: AwardCode }) {
               }}
             >
               <div
-                key={`${actualPage}-${query}-${filter}-${sort}`}
+                key={`${actualPage}-${query}-${selectedOnly}-${sort}`}
                 className={`video-grid slide-${slideDirection}${overLimit ? " over-limit" : ""}`}
               >
                 {videos

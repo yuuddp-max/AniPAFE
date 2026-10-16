@@ -89,6 +89,24 @@ test("紐付け原本：全作品の3列カード・選択と感想・原本の�
   await expect(page.locator(".video-card")).toHaveCount(12);
   await expect(page.locator(".video-card.chosen")).toHaveCount(9);
   await expect(page.locator(".selected-item")).toHaveCount(10);
+  const selectedFilter = page.getByRole("button", {
+    name: "選択の作品を表示",
+    exact: true,
+  });
+  await expect(selectedFilter).toHaveAttribute("aria-pressed", "false");
+  await expect(page.locator(".search-row select")).toHaveCount(1);
+  await expect(
+    page.getByRole("option", { name: "テーマあり", exact: true }),
+  ).toHaveCount(0);
+  const searchBox = await page
+    .getByRole("textbox", { name: "作品を検索" })
+    .boundingBox();
+  const sortBox = await page
+    .getByRole("combobox", { name: "並び替え" })
+    .boundingBox();
+  const toggleBox = await selectedFilter.boundingBox();
+  expect(sortBox!.x).toBeGreaterThan(searchBox!.x + searchBox!.width);
+  expect(toggleBox!.x).toBeGreaterThan(sortBox!.x + sortBox!.width);
   expect(
     await page
       .locator(".video-grid")
@@ -116,12 +134,32 @@ test("紐付け原本：全作品の3列カード・選択と感想・原本の�
   );
   await expect(page.locator(".video-card")).toHaveCount(12);
   await expect(page.locator(".video-card.chosen")).toHaveCount(0);
-  await page
-    .getByRole("combobox", { name: "絞り込み", exact: true })
-    .selectOption("selected");
+  await selectedFilter.click();
+  await expect(
+    page.getByRole("button", { name: "すべて表示", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".catalog-page-summary")).toContainText(
+    "作品ページ 1 / 1",
+  );
   await expect(page.locator(".video-card")).toHaveCount(9);
   await expect(page.locator(".catalog-total")).toHaveText("9作品");
   await expect(page.locator(".selected-item")).toHaveCount(10);
+  await page.getByRole("textbox", { name: "作品を検索" }).fill("sm90000002");
+  await expect(page.locator(".video-card")).toHaveCount(1);
+  await page.getByRole("combobox", { name: "並び替え" }).selectOption("author");
+  await page
+    .getByRole("button", { name: "すべて表示", exact: true })
+    .press("Enter");
+  await expect(selectedFilter).toHaveAttribute("aria-pressed", "false");
+  await expect(page.locator(".video-card")).toHaveCount(1);
+  await expect(page.getByRole("textbox", { name: "作品を検索" })).toHaveValue(
+    "sm90000002",
+  );
+  await expect(page.getByRole("combobox", { name: "並び替え" })).toHaveValue(
+    "author",
+  );
+  await page.getByRole("textbox", { name: "作品を検索" }).fill("");
+  await expect(page.locator(".catalog-total")).toHaveText("107作品");
   expect(
     await page.evaluate(
       () => (window as unknown as { ORIGINAL_XSS?: number }).ORIGINAL_XSS,
@@ -144,6 +182,23 @@ test("紐付け原本：全作品の3列カード・選択と感想・原本の�
   await nav.getByRole("link", { name: /総合賞/ }).click();
   await expect(page.locator(".video-card")).toHaveCount(12);
   await expect(page.locator(".selected-item")).toHaveCount(10);
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    const mobileSort = await page
+      .getByRole("combobox", { name: "並び替え" })
+      .boundingBox();
+    const mobileToggle = await selectedFilter.boundingBox();
+    expect(Math.abs(mobileSort!.y - mobileToggle!.y)).toBeLessThan(5);
+    await selectedFilter.click();
+    await expect(page.locator(".video-card")).toHaveCount(9);
+    await page.getByRole("button", { name: "すべて表示", exact: true }).click();
+    await expect(page.locator(".video-card")).toHaveCount(12);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBeTruthy();
+  }
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
@@ -192,6 +247,13 @@ test("保存済みサイト票を優先し、原本との切替で上書き・�
   await expect(page.getByRole("textbox", { name: /感想/ })).toHaveValue(
     "サイトで入力した感想",
   );
+  await page
+    .getByRole("button", { name: "選択の作品を表示", exact: true })
+    .click();
+  await expect(page.locator(".video-card")).toHaveCount(1);
+  await expect(page.locator(".video-card.chosen")).toHaveCount(1);
+  await page.getByRole("button", { name: "すべて表示", exact: true }).click();
+  await expect(page.locator(".video-card")).toHaveCount(12);
   const original = await page
     .getByRole("combobox", { name: "表示する投票" })
     .getByRole("option")

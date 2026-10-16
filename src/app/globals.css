@@ -1054,6 +1054,21 @@ img {
 .search-row select {
   padding: 11px 8px;
 }
+.selected-filter {
+  min-width: 150px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  color: var(--green);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.selected-filter[aria-pressed="true"] {
+  border-color: var(--green);
+  background: var(--green);
+  color: white;
+}
 .theme-intro {
   font-size: 12px;
   color: var(--green);
@@ -2053,7 +2068,8 @@ td button {
   .search-field {
     flex-basis: 100%;
   }
-  .search-row select {
+  .search-row select,
+  .search-row .selected-filter {
     flex: 1;
   }
   .video-grid {
