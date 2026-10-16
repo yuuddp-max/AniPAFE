@@ -10,6 +10,7 @@ export default async function ProfilePage() {
     db
       .from("data_ballot")
       .select("status")
+      .eq("source", "site")
       .eq("voter_id", user.id)
       .eq("year", poll.year)
       .maybeSingle(),

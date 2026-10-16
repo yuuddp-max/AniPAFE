@@ -18,6 +18,7 @@ export async function voteData(): Promise<VoteData> {
     db
       .from("data_ballot")
       .select("*")
+      .eq("source", "site")
       .eq("voter_id", user.id)
       .eq("year", poll.year)
       .maybeSingle(),
