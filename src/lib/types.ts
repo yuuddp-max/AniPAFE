@@ -54,6 +54,7 @@ export type Poll = {
 };
 export type AdminVoter = {
   ballot_id: string;
+  revision: number;
   voter_id: string | null;
   display_name: string;
   nico_user_id: string;

@@ -45,6 +45,7 @@ export async function loadAdminYear(
       b.source === "site" && b.voter_id ? byId.get(b.voter_id) : null;
     return {
       ballot_id: b.id,
+      revision: b.revision,
       voter_id: b.voter_id,
       source: b.source,
       status: b.status,

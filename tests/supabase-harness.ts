@@ -102,6 +102,7 @@ const functions = new Set([
   "admin_thumbnail",
   "admin_year_import",
   "admin_year_reopen",
+  "admin_year_delete_ballot",
   "admin_year_profile",
   "admin_year_thumbnail",
   "admin_report",

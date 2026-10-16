@@ -87,7 +87,12 @@ export function AdminYearWorkspace({
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
       await load(year);
-      setMessage(year + "年度：保存しました。");
+      setMessage(
+        year +
+          (body.action === "delete_ballot"
+            ? "年度：投票データを削除しました。"
+            : "年度：保存しました。"),
+      );
       router.refresh();
     } catch (e) {
       setError((e as Error).message);
@@ -355,7 +360,7 @@ export function AdminYearWorkspace({
       {data?.kind === "voters" && (
         <>
           <p className="muted">
-            この年度に投票データがある方を表示します。過去フォーム原本は閲覧のみです。
+            この年度に投票データがある方を表示します。削除すると、この年度の回答・投票明細・感想が削除されます。過去フォーム原本も削除できます。
           </p>
           <p className="muted">
             ニコニコIDは全年度共通です。ID訂正は全年度のプロフィールに反映されます。確定済み投票がある年度は先に再開してください。
@@ -433,6 +438,29 @@ export function AdminYearWorkspace({
                       ) : (
                         "原本のため修正不可"
                       )}
+                      <button
+                        className="danger"
+                        disabled={busy}
+                        onClick={() => {
+                          const reason =
+                            window.prompt("削除理由（操作履歴に記録）");
+                          if (!reason?.trim()) return;
+                          if (
+                            !window.confirm(
+                              `${data.year}年度の「${v.display_name}」（ニコニコID: ${v.nico_user_id || "未記入"}）の投票データを削除します。\n${v.source === "historical" ? "過去フォーム原本の回答" : "投票回答"}と、関連する投票明細・感想をすべて削除します。集計にも反映されます。\n別年度の投票・アカウント・プロフィールは残ります。この操作は取り消せません。\n削除しますか？`,
+                            )
+                          )
+                            return;
+                          void action({
+                            action: "delete_ballot",
+                            ballot_id: v.ballot_id,
+                            revision: v.revision,
+                            reason: reason.trim(),
+                          });
+                        }}
+                      >
+                        削除
+                      </button>
                     </td>
                   </tr>
                 ))}

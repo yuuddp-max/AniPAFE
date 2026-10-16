@@ -23,6 +23,12 @@ const inputSchema = z
     z.object({ action: z.literal("switch_year"), target_year: year }),
     z.object({ action: z.literal("reopen"), voter_id: z.uuid(), reason }),
     z.object({
+      action: z.literal("delete_ballot"),
+      ballot_id: z.uuid(),
+      revision: z.number().int().nonnegative(),
+      reason,
+    }),
+    z.object({
       action: z.literal("profile"),
       voter_id: z.uuid(),
       nico_user_id: z
@@ -83,6 +89,13 @@ export async function POST(request: Request) {
     } else if (input.action === "reopen")
       result = await db.rpc("admin_year_reopen", {
         p_voter: input.voter_id,
+        p_reason: input.reason,
+        p_year: input.year,
+      });
+    else if (input.action === "delete_ballot")
+      result = await db.rpc("admin_year_delete_ballot", {
+        p_ballot: input.ballot_id,
+        p_revision: input.revision,
         p_reason: input.reason,
         p_year: input.year,
       });

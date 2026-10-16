@@ -349,9 +349,6 @@ export function TallyPanel({
                 )}
               </div>
             </div>
-            <p className="tally-participation-legend">
-              ✓：投票参加済み　—：参加なし　?：未確認。総合賞の票数は参加分の1票を含みます。
-            </p>
             {result.ballot_count === 0 && (
               <p>この年度・集計元の投票データはありません。</p>
             )}
@@ -403,7 +400,7 @@ export function TallyPanel({
                   tabIndex={0}
                 >
                   <table className="tally-table">
-                    <caption>
+                    <caption className="sr-only">
                       {result.year}年度{" "}
                       {tallyAwards.find((a) => a.code === award)?.name}
                       {result.provisional ? "（暫定）" : ""}

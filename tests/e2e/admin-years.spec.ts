@@ -200,7 +200,9 @@ test("作品・投票者を年度別に閲覧・編集・取込し、対象年�
     .locator("tbody tr")
     .filter({ hasText: "2025年度の原本回答者" });
   await expect(original).toContainText("原本のため修正不可");
-  await expect(original.getByRole("button")).toHaveCount(0);
+  await expect(
+    original.getByRole("button", { name: "削除", exact: true }),
+  ).toBeEnabled();
   const privateJson = await (await page.request.get(endpoint)).text();
   expect(privateJson).not.toContain("raw_response");
   expect(privateJson).not.toContain("original-must-stay-server-only");
@@ -246,11 +248,12 @@ test("作品・投票者を年度別に閲覧・編集・取込し、対象年�
   await expect(voterRow).toContainText("下書き");
   await voters.getByLabel("投票者・修正年度").selectOption("2025");
   await expect(voterRow).toContainText("下書き");
-  page.on("dialog", (d) =>
-    d.accept(d.message().startsWith("正しい") ? "1234567" : "ID訂正の検証"),
-  );
+  const correctIdDialog = (d: import("@playwright/test").Dialog) =>
+    d.accept(d.message().startsWith("正しい") ? "1234567" : "ID訂正の検証");
+  page.on("dialog", correctIdDialog);
   await voterRow.getByRole("button", { name: "IDを訂正", exact: true }).click();
   await expect(voterRow).toContainText("ニコニコID: 1234567");
+  page.off("dialog", correctIdDialog);
   await page.getByRole("button", { name: "作品マスター", exact: true }).click();
   await expect(master.getByLabel("作品マスター年度")).toHaveValue("2025");
   await expect(master.locator("tbody tr").first()).toContainText(
@@ -280,6 +283,82 @@ test("作品・投票者を年度別に閲覧・編集・取込し、対象年�
     path: "artifacts/admin-years/voters-desktop.png",
     fullPage: true,
   });
+  const otherYearBeforeDelete = await (
+    await page.request.get("/api/admin/year-data?year=2026&kind=voters")
+  ).json();
+  const beforeDelete = await (await page.request.get(endpoint)).json();
+  const originalBallot = beforeDelete.voters.find(
+    (v: { source: string }) => v.source === "historical",
+  );
+  const deleteBody = {
+    action: "delete_ballot",
+    year: 2025,
+    ballot_id: originalBallot.ballot_id,
+    revision: originalBallot.revision,
+    reason: "誤取込の削除",
+  };
+  expect(
+    (
+      await page.request.post("/api/admin", {
+        headers: { Origin: "https://invalid.example" },
+        data: deleteBody,
+      })
+    ).status(),
+  ).toBe(403);
+  expect(
+    (
+      await page.request.post("/api/admin", {
+        headers,
+        data: { ...deleteBody, year: 2026 },
+      })
+    ).status(),
+  ).toBe(400);
+  expect(
+    (
+      await page.request.post("/api/admin", {
+        headers,
+        data: { ...deleteBody, revision: originalBallot.revision + 1 },
+      })
+    ).status(),
+  ).toBe(409);
+  const cancelDelete = async (dialog: import("@playwright/test").Dialog) => {
+    if (dialog.type() === "prompt") await dialog.accept("誤取込の削除");
+    else {
+      expect(dialog.message()).toContain("2025年度");
+      expect(dialog.message()).toContain("過去フォーム原本");
+      await dialog.dismiss();
+    }
+  };
+  page.on("dialog", cancelDelete);
+  await original.getByRole("button", { name: "削除", exact: true }).click();
+  page.off("dialog", cancelDelete);
+  expect(await (await page.request.get(endpoint)).json()).toEqual(beforeDelete);
+  const cachedBeforeDelete = await (
+    await page.request.get("/api/admin/tally?year=2025&source=historical")
+  ).json();
+  const acceptDelete = async (dialog: import("@playwright/test").Dialog) =>
+    dialog.accept(dialog.type() === "prompt" ? "誤登録の削除" : undefined);
+  page.on("dialog", acceptDelete);
+  await original.getByRole("button", { name: "削除", exact: true }).click();
+  await expect(original).toHaveCount(0);
+  await expect(voters.getByRole("status")).toContainText(
+    "投票データを削除しました",
+  );
+  const cachedAfterDelete = await (
+    await page.request.get("/api/admin/tally?year=2025&source=historical")
+  ).json();
+  expect(cachedAfterDelete.ballot_count).toBe(
+    cachedBeforeDelete.ballot_count - 1,
+  );
+  await voterRow.getByRole("button", { name: "削除", exact: true }).click();
+  await expect(voterRow).toHaveCount(0);
+  await expect(voters).toContainText("この年度の投票者はいません");
+  page.off("dialog", acceptDelete);
+  expect(
+    await (
+      await page.request.get("/api/admin/year-data?year=2026&kind=voters")
+    ).json(),
+  ).toEqual(otherYearBeforeDelete);
   await voters.getByLabel("投票者・修正年度").selectOption("2027");
   await expect(voters).toContainText("この年度の投票者はいません");
   await page.setViewportSize({ width: 390, height: 844 });
