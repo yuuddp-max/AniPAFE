@@ -83,7 +83,7 @@ test("年度設定・タイトル変更・過去の本人投票・公開結果�
     const yearControls = admin.getByRole("region", { name: "対象年度の管理" });
     await expect(yearControls).toBeHidden();
     await admin
-      .getByRole("button", { name: "年度・投票設定", exact: true })
+      .getByRole("button", { name: "年度マスタ", exact: true })
       .click();
     await expect(yearControls).toBeVisible();
     await mkdir("artifacts/admin-settings", { recursive: true });
@@ -117,7 +117,7 @@ test("年度設定・タイトル変更・過去の本人投票・公開結果�
       admin.getByText("対象年度：2027年度", { exact: true }),
     ).toHaveCount(1);
     await admin
-      .getByRole("button", { name: "年度・投票設定", exact: true })
+      .getByRole("button", { name: "年度マスタ", exact: true })
       .click();
     await expect(yearControls).toBeVisible();
     const stale = await page.request.post("/api/ballot", {
@@ -159,7 +159,7 @@ test("年度設定・タイトル変更・過去の本人投票・公開結果�
       admin.getByText("対象年度：2026年度", { exact: true }),
     ).toHaveCount(1);
     await admin
-      .getByRole("button", { name: "年度・投票設定", exact: true })
+      .getByRole("button", { name: "年度マスタ", exact: true })
       .click();
     await admin
       .getByLabel("投票画面タイトル", { exact: true })

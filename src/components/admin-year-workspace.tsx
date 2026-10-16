@@ -28,7 +28,7 @@ export function AdminYearWorkspace({
 }) {
   const router = useRouter();
   const kind = initialData.kind;
-  const label = kind === "videos" ? "作品マスター" : "投票者・修正";
+  const label = kind === "videos" ? "作為品一覧" : "投票者一覧";
   const [year, setYear] = useState(initialData.year);
   const [data, setData] = useState<AdminYearData | null>(initialData);
   const [loading, setLoading] = useState(false);
@@ -266,7 +266,7 @@ export function AdminYearWorkspace({
           <input
             className="admin-search"
             placeholder="作品名・動画IDで検索"
-            aria-label="作品マスター検索"
+            aria-label="作為品一覧検索"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -368,7 +368,7 @@ export function AdminYearWorkspace({
           <div className="table-scroll">
             <table>
               <caption>
-                {data.year}年度の投票者・修正（{data.voters.length}件）
+                {data.year}年度の投票者一覧（{data.voters.length}件）
               </caption>
               <thead>
                 <tr>

@@ -16,25 +16,25 @@ import type { AdminTallyResult } from "@/lib/tally";
 const adminTabs = [
   {
     key: "settings",
-    label: "年度・投票設定",
+    label: "年度マスタ",
     description: "対象年度・期間・公開",
     icon: CalendarDays,
   },
   {
     key: "ranking",
-    label: "集計・明細",
+    label: "投票集計",
     description: "順位・明細・出力",
     icon: ChartColumn,
   },
   {
     key: "videos",
-    label: "作品マスター",
+    label: "作為品一覧",
     description: "作品登録・編集",
     icon: Clapperboard,
   },
   {
     key: "voters",
-    label: "投票者・修正",
+    label: "投票者一覧",
     description: "投票確認・訂正",
     icon: UsersRound,
   },

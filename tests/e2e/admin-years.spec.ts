@@ -123,12 +123,12 @@ test("作品・投票者を年度別に閲覧・編集・取込し、対象年�
       .getByRole("navigation", { name: "管理機能" })
       .getByRole("button")
       .first(),
-  ).toHaveAccessibleName("年度・投票設定");
-  await page.getByRole("button", { name: "作品マスター", exact: true }).click();
-  const master = page.getByRole("region", { name: "作品マスターの年度別管理" });
-  await master.getByLabel("作品マスター年度").selectOption("2025");
+  ).toHaveAccessibleName("年度マスタ");
+  await page.getByRole("button", { name: "作為品一覧", exact: true }).click();
+  const master = page.getByRole("region", { name: "作為品一覧の年度別管理" });
+  await master.getByLabel("作為品一覧年度").selectOption("2025");
   await expect(
-    master.getByRole("heading", { name: "2025年度の作品マスター" }),
+    master.getByRole("heading", { name: "2025年度の作為品一覧" }),
   ).toBeVisible();
   await expect(master.locator("tbody tr")).toHaveCount(0);
   await master.getByLabel("インポートファイル").setInputFiles({
@@ -180,17 +180,17 @@ test("作品・投票者を年度別に閲覧・編集・取込し、対象年�
       await page.request.get("/api/admin/year-data?year=2026&kind=videos")
     ).json(),
   ).toEqual(currentVideos);
-  await master.getByLabel("作品マスター年度").selectOption("2027");
+  await master.getByLabel("作為品一覧年度").selectOption("2027");
   await expect(master.locator("tbody tr")).toHaveCount(0);
-  await master.getByLabel("作品マスター年度").selectOption("2025");
+  await master.getByLabel("作為品一覧年度").selectOption("2025");
   await expect(master.locator("tbody tr")).toHaveCount(107);
   const seeded = await request.post(
     "http://127.0.0.1:54329/__test/admin-year-voters-seed",
   );
   expect(seeded.ok(), await seeded.text()).toBeTruthy();
-  await page.getByRole("button", { name: "投票者・修正", exact: true }).click();
-  const voters = page.getByRole("region", { name: "投票者・修正の年度別管理" });
-  await voters.getByLabel("投票者・修正年度").selectOption("2025");
+  await page.getByRole("button", { name: "投票者一覧", exact: true }).click();
+  const voters = page.getByRole("region", { name: "投票者一覧の年度別管理" });
+  await voters.getByLabel("投票者一覧年度").selectOption("2025");
   const voterRow = voters
     .locator("tbody tr")
     .filter({ hasText: "年度別の投票者" });
@@ -238,7 +238,7 @@ test("作品・投票者を年度別に閲覧・編集・取込し、対象年�
   });
   expect(blocked.status()).toBe(400);
   expect(await blocked.text()).toContain("全年度共通");
-  await voters.getByLabel("投票者・修正年度").selectOption("2026");
+  await voters.getByLabel("投票者一覧年度").selectOption("2026");
   await expect(voterRow).toContainText("確定済み");
   await expect(voters).toContainText("2026年度だけの登録者");
   page.once("dialog", (d) => d.accept("ID訂正前の再開"));
@@ -246,7 +246,7 @@ test("作品・投票者を年度別に閲覧・編集・取込し、対象年�
     .getByRole("button", { name: "投票を再開", exact: true })
     .click();
   await expect(voterRow).toContainText("下書き");
-  await voters.getByLabel("投票者・修正年度").selectOption("2025");
+  await voters.getByLabel("投票者一覧年度").selectOption("2025");
   await expect(voterRow).toContainText("下書き");
   const correctIdDialog = (d: import("@playwright/test").Dialog) =>
     d.accept(d.message().startsWith("正しい") ? "1234567" : "ID訂正の検証");
@@ -254,8 +254,8 @@ test("作品・投票者を年度別に閲覧・編集・取込し、対象年�
   await voterRow.getByRole("button", { name: "IDを訂正", exact: true }).click();
   await expect(voterRow).toContainText("ニコニコID: 1234567");
   page.off("dialog", correctIdDialog);
-  await page.getByRole("button", { name: "作品マスター", exact: true }).click();
-  await expect(master.getByLabel("作品マスター年度")).toHaveValue("2025");
+  await page.getByRole("button", { name: "作為品一覧", exact: true }).click();
+  await expect(master.getByLabel("作為品一覧年度")).toHaveValue("2025");
   await expect(master.locator("tbody tr").first()).toContainText(
     "2025年度だけのテーマ",
   );
@@ -277,8 +277,8 @@ test("作品・投票者を年度別に閲覧・編集・取込し、対象年�
     path: "artifacts/admin-years/videos-desktop.png",
     fullPage: true,
   });
-  await page.getByRole("button", { name: "投票者・修正", exact: true }).click();
-  await expect(voters.getByLabel("投票者・修正年度")).toHaveValue("2025");
+  await page.getByRole("button", { name: "投票者一覧", exact: true }).click();
+  await expect(voters.getByLabel("投票者一覧年度")).toHaveValue("2025");
   await page.screenshot({
     path: "artifacts/admin-years/voters-desktop.png",
     fullPage: true,
@@ -359,10 +359,10 @@ test("作品・投票者を年度別に閲覧・編集・取込し、対象年�
       await page.request.get("/api/admin/year-data?year=2026&kind=voters")
     ).json(),
   ).toEqual(otherYearBeforeDelete);
-  await voters.getByLabel("投票者・修正年度").selectOption("2027");
+  await voters.getByLabel("投票者一覧年度").selectOption("2027");
   await expect(voters).toContainText("この年度の投票者はいません");
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(voters.getByLabel("投票者・修正年度")).toBeVisible();
+  await expect(voters.getByLabel("投票者一覧年度")).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
@@ -427,10 +427,10 @@ test("年度別データの読込失敗・再試行・連続切替と年度違�
     }),
   );
   await page.goto("/admin");
-  await page.getByRole("button", { name: "作品マスター", exact: true }).click();
-  const master = page.getByRole("region", { name: "作品マスターの年度別管理" });
+  await page.getByRole("button", { name: "作為品一覧", exact: true }).click();
+  const master = page.getByRole("region", { name: "作為品一覧の年度別管理" });
   await expect(master.locator("tbody tr")).toHaveCount(107);
-  await master.getByLabel("作品マスター年度").selectOption("2025");
+  await master.getByLabel("作為品一覧年度").selectOption("2025");
   await expect(master.getByRole("alert")).toContainText(
     "年度別読み込みの検証エラー",
   );
@@ -442,7 +442,7 @@ test("年度別データの読込失敗・再試行・連続切替と年度違�
   await master.getByRole("button", { name: "再読み込み", exact: true }).click();
   await expect(master.locator("tbody tr")).toHaveCount(1);
   await expect(master.getByRole("alert")).toHaveCount(0);
-  await master.getByLabel("作品マスター年度").selectOption("2026");
+  await master.getByLabel("作為品一覧年度").selectOption("2026");
   await expect(master.locator("tbody tr")).toHaveCount(107);
   await page.route(url, async (route) => {
     try {
@@ -456,19 +456,19 @@ test("年度別データの読込失敗・再試行・連続切替と年度違�
   const requested = page.waitForRequest((r) =>
     r.url().includes("year=2025&kind=videos"),
   );
-  await master.getByLabel("作品マスター年度").selectOption("2025");
+  await master.getByLabel("作為品一覧年度").selectOption("2025");
   await requested;
-  await master.getByLabel("作品マスター年度").selectOption("2026");
+  await master.getByLabel("作為品一覧年度").selectOption("2026");
   await expect(master.locator("tbody tr")).toHaveCount(107);
-  await expect(master.getByLabel("作品マスター年度")).toHaveValue("2026");
+  await expect(master.getByLabel("作為品一覧年度")).toHaveValue("2026");
   await expect(master.getByRole("alert")).toHaveCount(0);
-  await page.getByRole("button", { name: "投票者・修正", exact: true }).click();
-  const voters = page.getByRole("region", { name: "投票者・修正の年度別管理" });
-  await voters.getByLabel("投票者・修正年度").selectOption("2025");
+  await page.getByRole("button", { name: "投票者一覧", exact: true }).click();
+  const voters = page.getByRole("region", { name: "投票者一覧の年度別管理" });
+  await voters.getByLabel("投票者一覧年度").selectOption("2025");
   await expect(voters.locator("tbody tr")).toHaveCount(201);
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 });
-    await expect(voters.getByLabel("投票者・修正年度")).toBeVisible();
+    await expect(voters.getByLabel("投票者一覧年度")).toBeVisible();
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= window.innerWidth,
@@ -492,16 +492,16 @@ test("管理タブの視認性・全幅配置・キーボード操作と集計�
   await page.goto("/admin");
   const navigation = page.getByRole("navigation", { name: "管理機能" });
   const labels = [
-    "年度・投票設定",
-    "集計・明細",
-    "作品マスター",
-    "投票者・修正",
+    "年度マスタ",
+    "投票集計",
+    "作為品一覧",
+    "投票者一覧",
     "操作履歴",
   ];
   const buttons = navigation.getByRole("button");
   await expect(buttons).toHaveCount(5);
   await expect(
-    navigation.getByRole("button", { name: "集計・明細", exact: true }),
+    navigation.getByRole("button", { name: "投票集計", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
   await mkdir("artifacts/admin-tabs", { recursive: true });
   for (const width of [1440, 1024, 980, 768, 390, 320]) {
@@ -582,7 +582,7 @@ test("管理タブの視認性・全幅配置・キーボード操作と集計�
     await expect(page.locator('[id^="admin-panel-"]:visible')).toHaveCount(1);
   }
   await navigation
-    .getByRole("button", { name: "集計・明細", exact: true })
+    .getByRole("button", { name: "投票集計", exact: true })
     .click();
   const tally = page.getByRole("region", {
     name: "Excel方式の集計",
@@ -602,10 +602,10 @@ test("管理タブの視認性・全幅配置・キーボード操作と集計�
     .getByRole("button", { name: "次の50明細", exact: true })
     .click();
   await navigation
-    .getByRole("button", { name: "作品マスター", exact: true })
+    .getByRole("button", { name: "作為品一覧", exact: true })
     .click();
   await navigation
-    .getByRole("button", { name: "集計・明細", exact: true })
+    .getByRole("button", { name: "投票集計", exact: true })
     .click();
   await expect(
     tally.getByRole("searchbox", { name: "作品・製作者を検索", exact: true }),
@@ -617,17 +617,17 @@ test("管理タブの視認性・全幅配置・キーボード操作と集計�
   await tally.getByLabel("集計年度", { exact: true }).selectOption("2026");
   await expect(tally.getByLabel("集計結果の概要")).toContainText("2026年度");
   await navigation
-    .getByRole("button", { name: "年度・投票設定", exact: true })
+    .getByRole("button", { name: "年度マスタ", exact: true })
     .click();
   await navigation
-    .getByRole("button", { name: "集計・明細", exact: true })
+    .getByRole("button", { name: "投票集計", exact: true })
     .click();
   await expect(tally.getByLabel("集計年度", { exact: true })).toHaveValue(
     "2026",
   );
   await expect(tally.getByLabel("集計結果の概要")).toContainText("2026年度");
   const active = navigation.getByRole("button", {
-    name: "集計・明細",
+    name: "投票集計",
     exact: true,
   });
   expect(await active.evaluate((el) => getComputedStyle(el).color)).toBe(
@@ -637,9 +637,9 @@ test("管理タブの視認性・全幅配置・キーボード操作と集計�
   await expect(active).toHaveCSS("background-color", "rgb(44, 87, 64)");
   // A server refresh after editing keeps the chosen filters and refreshes results.
   await navigation
-    .getByRole("button", { name: "作品マスター", exact: true })
+    .getByRole("button", { name: "作為品一覧", exact: true })
     .click();
-  const master = page.getByRole("region", { name: "作品マスターの年度別管理" });
+  const master = page.getByRole("region", { name: "作為品一覧の年度別管理" });
   const recalculated = page.waitForResponse((response) => {
     const url = new URL(response.url());
     return (
@@ -660,7 +660,7 @@ test("管理タブの視認性・全幅配置・キーボード操作と集計�
   expect((await recalculated).ok()).toBeTruthy();
   page.off("dialog", editDialog);
   await navigation
-    .getByRole("button", { name: "集計・明細", exact: true })
+    .getByRole("button", { name: "投票集計", exact: true })
     .click();
   await expect(tally.getByLabel("集計年度", { exact: true })).toHaveValue(
     "2026",

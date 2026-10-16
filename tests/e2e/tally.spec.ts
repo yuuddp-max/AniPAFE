@@ -189,10 +189,10 @@ test("Excel集計：権限・原本1206明細のページング・年度独立�
     navigation.getByRole("button", { name: "集計結果", exact: true }),
   ).toHaveCount(0);
   await expect(
-    navigation.getByRole("button", { name: "集計・明細", exact: true }),
+    navigation.getByRole("button", { name: "投票集計", exact: true }),
   ).toHaveCount(1);
   await expect(
-    navigation.getByRole("button", { name: "集計・明細", exact: true }),
+    navigation.getByRole("button", { name: "投票集計", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
   const independentPanel = page.getByRole("region", {
     name: "Excel方式の集計",
@@ -299,7 +299,7 @@ test("Excel集計：権限・原本1206明細のページング・年度独立�
   });
   await page.goto("/admin");
   await expect(
-    page.getByRole("button", { name: "集計・明細", exact: true }),
+    page.getByRole("button", { name: "投票集計", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
   const panel = page.getByRole("region", { name: "Excel方式の集計" });
   await expect(panel.getByLabel("集計年度")).toHaveValue("2025");
