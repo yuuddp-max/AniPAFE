@@ -1,3 +1,83 @@
+.historical-links {
+  min-width: 0;
+}
+.historical-link-filters,
+.historical-link-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+  margin: 16px 0;
+}
+.historical-links label {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+.historical-link-filters label:nth-child(2) {
+  flex: 1 1 240px;
+}
+.historical-links input,
+.historical-links select,
+.historical-links textarea {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+.historical-link-editor {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  margin: 18px 0;
+  border: 1px solid #8da68f;
+  border-radius: 10px;
+  background: #f7faf4;
+  overflow-wrap: anywhere;
+}
+.historical-link-editor p,
+.historical-link-editor h3 {
+  margin: 0;
+}
+.historical-links table {
+  min-width: 700px;
+}
+.historical-links td {
+  max-width: 300px;
+  overflow-wrap: anywhere;
+}
+.historical-user-id {
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 640px) {
+  .historical-links .table-scroll,
+  .historical-links table,
+  .historical-links tbody {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+  .historical-links thead {
+    display: none;
+  }
+  .historical-links tr {
+    display: block;
+    padding: 10px 0;
+    border-bottom: 1px solid #dce3da;
+  }
+  .historical-links td {
+    display: grid;
+    grid-template-columns: 100px minmax(0, 1fr);
+    gap: 6px;
+    max-width: none;
+    padding: 8px;
+  }
+  .historical-links td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    color: #596b61;
+  }
+}
 .admin-main {
   --dashboard-ink: #243e33;
   --dashboard-muted: #596b61;
@@ -95,7 +175,7 @@
 }
 .admin-main .admin-tabs {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   margin: 18px 0 24px;
   padding: 8px;

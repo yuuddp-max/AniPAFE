@@ -6,6 +6,7 @@ import {
   ChartColumn,
   Clapperboard,
   History,
+  Link2,
   UsersRound,
 } from "lucide-react";
 import type { AdminYearData, Poll } from "@/lib/types";
@@ -13,6 +14,7 @@ import { AdminYearWorkspace } from "@/components/admin-year-workspace";
 import { jst } from "@/lib/validation";
 import { TallyPanel } from "@/components/tally-panel";
 import type { AdminTallyResult } from "@/lib/tally";
+import { HistoricalVoterLinks } from "@/components/historical-voter-links";
 const adminTabs = [
   {
     key: "settings",
@@ -37,6 +39,12 @@ const adminTabs = [
     label: "投票者一覧",
     description: "投票確認・訂正",
     icon: UsersRound,
+  },
+  {
+    key: "historical-links",
+    label: "過去投票者の紐付け",
+    description: "原本とログインユーザー",
+    icon: Link2,
   },
   {
     key: "audit",
@@ -368,6 +376,17 @@ export function AdminDashboard({
             </tbody>
           </table>
         </div>
+      </div>
+      <div
+        id="admin-panel-historical-links"
+        hidden={tab !== "historical-links"}
+      >
+        {tab === "historical-links" && (
+          <HistoricalVoterLinks
+            years={years.map((year) => year.year)}
+            initialYear={poll.year}
+          />
+        )}
       </div>
     </>
   );

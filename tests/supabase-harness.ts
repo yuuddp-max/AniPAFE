@@ -92,6 +92,7 @@ const tables = new Set([
   "audit_logs",
   "master_event_settings",
   "data_tally_results",
+  "data_historical_voter_links",
 ]);
 const functions = new Set([
   "save_profile",
@@ -105,6 +106,7 @@ const functions = new Set([
   "admin_year_import",
   "admin_year_reopen",
   "admin_year_delete_ballot",
+  "admin_link_historical_voter",
   "admin_year_profile",
   "admin_year_thumbnail",
   "admin_report",
@@ -155,6 +157,18 @@ const server = createServer(async (req, res) => {
           join public.data_ballots e on e.ballot_id=current.id where older.year=2025 and older.source='site';
         insert into public.data_ballot(year,status,source,source_row,display_name,source_timestamp,raw_response)
           values(2025,'imported','historical',2,'2025年度の原本回答者','原本日時','{"private_original":"original-must-stay-server-only"}');
+      `);
+      return send(200, { ok: true });
+    }
+    if (
+      url.pathname === "/__test/historical-links-seed" &&
+      req.method === "POST"
+    ) {
+      await fixture.db.exec(`
+        insert into public.master_poll_settings(id,year,title) values(2025,2025,'AniPAFE2025');
+        insert into public.data_ballot(year,source,status,source_row,display_name,nico_user_id,source_timestamp,raw_response)
+          select 2025,'historical','imported',i+1,'原本回答者 '||i,case when i=1 then '350396' end,'原本日時 '||i,'{"private_original":"do-not-expose"}'::jsonb
+          from generate_series(1,1005) i;
       `);
       return send(200, { ok: true });
     }
