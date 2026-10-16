@@ -7,7 +7,7 @@ export async function voteData(): Promise<VoteData> {
   const { db, user } = await pageUser();
   const poll = await currentPoll(db);
   const results = await Promise.all([
-    db.from("data_profiles").select("*").eq("user_id", user.id).maybeSingle(),
+    db.from("data_login_user").select("*").eq("user_id", user.id).maybeSingle(),
     db.from("master_award_types").select("*").order("display_order"),
     db
       .from("data_mad")

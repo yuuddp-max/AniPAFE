@@ -433,13 +433,22 @@ test("集計ダッシュボード：概要グラフの削除・部門切替・�
   const metrics = panel.getByLabel("投票集計サマリー", { exact: true });
   await expect(metrics.locator(".tally-metric-label > span")).toHaveText([
     "作品数合計",
-    "投票回答数",
-    "得票作品数",
+    "製作者数",
+    "投票者数",
+    "投票者数（製作者）",
   ]);
   await expect(metrics.locator("article").first()).toContainText("12作品");
+  const creatorCount = Number(
+    await metrics.locator("article").nth(1).locator("strong").innerText(),
+  );
+  expect(creatorCount).toBeGreaterThan(0);
+  expect(creatorCount).toBeLessThanOrEqual(12);
+  await expect(metrics.locator("article").nth(1)).toContainText(
+    `${creatorCount}名`,
+  );
   await expect(
-    metrics.locator("article").filter({ hasText: "得票作品数" }),
-  ).toContainText("8作品");
+    metrics.locator("article").filter({ hasText: "投票者数（製作者）" }),
+  ).toContainText("0名");
   await expect(panel.getByLabel("総合賞の上位3作品")).toHaveCount(0);
   await expect(
     panel.getByRole("region", { name: /の得票グラフ|部門別の投票数/ }),
@@ -499,6 +508,11 @@ test("集計ダッシュボード：概要グラフの削除・部門切替・�
     fullPage: true,
   });
   await page.setViewportSize({ width: 1440, height: 1250 });
+  expect(
+    await metrics.evaluate(
+      (el) => getComputedStyle(el).gridTemplateColumns.split(" ").length,
+    ),
+  ).toBe(4);
   await page.evaluate(() =>
     window.scrollTo(
       0,
@@ -531,6 +545,11 @@ test("集計ダッシュボード：概要グラフの削除・部門切替・�
   for (const width of [1024, 768, 390, 320]) {
     await page.setViewportSize({ width, height: 844 });
     expect(
+      await metrics.evaluate(
+        (el) => getComputedStyle(el).gridTemplateColumns.split(" ").length,
+      ),
+    ).toBe(width <= 720 ? 2 : 4);
+    expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= window.innerWidth,
       ),
@@ -554,10 +573,13 @@ test("集計ダッシュボード：概要グラフの削除・部門切替・�
   }
   await panel.getByLabel("集計元", { exact: true }).selectOption("site");
   await expect(panel.getByLabel("集計結果の概要")).toContainText("0回答／0票");
+  await expect(metrics.locator("article").nth(1)).toContainText(
+    `${creatorCount}名`,
+  );
   await expect(metrics.locator("article").first()).toContainText("12作品");
   await expect(
-    metrics.locator("article").filter({ hasText: "得票作品数" }),
-  ).toContainText("0作品");
+    metrics.locator("article").filter({ hasText: "投票者数（製作者）" }),
+  ).toContainText("0名");
   await expect(panel.getByLabel("総合賞の上位3作品")).toHaveCount(0);
   await expect(
     panel.getByRole("list", { name: "総合賞の順位一覧", exact: true }),

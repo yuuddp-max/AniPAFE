@@ -89,6 +89,8 @@ select tablename, rowsecurity from pg_tables where schemaname = 'public';
 
 `supabase/migrations/20261014224724_rename_profiles_to_data_profiles.sql` を専用DBへ適用済みです。`profiles` の実テーブルは `data_profiles` へ改名し、旧名は `security_invoker` 互換ビューとして残しています。アプリ・管理画面・関連DB関数は新名を参照します。[プロフィール改名の検証記録](docs/profile-table-rename.md) に詳細をまとめています。
 
+2026-10-16の後続変更で、本番の実テーブルを正式名 `data_login_user` へ改名済みです。`data_profiles` と前回の `data_loginuser` はRLSを維持する互換ビューとして残し、ログイン・投票・運営操作のRPCは維持します。[ログインユーザー改名の記録](docs/loginuser-table-rename.md) を参照してください。
+
 ### 投票設定と管理者のマスター名（2026-10-15追加変更）
 
 `supabase/migrations/20261014225452_rename_settings_and_admin_master_tables.sql` を専用DBへ適用済みです。`poll_settings` は `master_poll_settings`、`admin_users` は `master_admin_users` へ改名しました。旧名はRLSを引き継ぐ互換ビューです。アプリとDB関数は新名を参照します。[マスター改名の検証記録](docs/master-table-renames.md) を参照してください。

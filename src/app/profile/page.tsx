@@ -6,7 +6,7 @@ export default async function ProfilePage() {
   const { db, user } = await pageUser();
   const poll = await currentPoll(db);
   const [p, b] = await Promise.all([
-    db.from("data_profiles").select("*").eq("user_id", user.id).maybeSingle(),
+    db.from("data_login_user").select("*").eq("user_id", user.id).maybeSingle(),
     db
       .from("data_ballot")
       .select("status")

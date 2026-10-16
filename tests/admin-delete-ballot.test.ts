@@ -33,7 +33,7 @@ test("投票削除：運営限定・年度/更新番号保護・原本/下書き
     const snapshot = async () =>
       (
         await db.query(`select jsonb_build_object(
-      'profiles',(select jsonb_agg(p) from public.data_profiles p),
+      'profiles',(select jsonb_agg(p) from public.data_login_user p),
       'users',(select jsonb_agg(u) from auth.users u),
       'past',(select jsonb_agg(b) from public.data_ballot b where year=2025),
       'past_entries',(select jsonb_agg(e) from public.data_ballots e where year=2025),

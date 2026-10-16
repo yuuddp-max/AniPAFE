@@ -125,7 +125,7 @@ async function calculateTally(
   );
   const profiles =
     actualSource === "site"
-      ? await adminRows<Profile>(db, "data_profiles")
+      ? await adminRows<Profile>(db, "data_login_user")
       : [];
   const profileMap = new Map(profiles.map((p) => [p.user_id, p]));
   const identity = (b: TallyBallot) =>

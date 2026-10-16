@@ -165,7 +165,7 @@ test("保存集計：運営専用RLS・条件別保存・更新検知・競合�
     const profile26 = (await state()).revision;
     const profile25 = (await state(2025)).revision;
     await db.exec(
-      `update public.data_profiles set nico_user_id='888889' where user_id='${U1}';`,
+      `update public.data_login_user set nico_user_id='888889' where user_id='${U1}';`,
     );
     assert.notEqual((await state()).revision, profile26);
     assert.notEqual((await state(2025)).revision, profile25);

@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  countCreators,
+  countParticipatingCreators,
   tally,
   tallyAwards,
   tallyCsvRows,
@@ -8,6 +10,45 @@ import {
   type TallyWork,
 } from "../src/lib/tally";
 import { csv } from "../src/lib/validation";
+
+test("製作者の投票者数は作品数・回答数によらずニコニコIDで重複を除き、参加未確認は含めない", () => {
+  const result = tally({
+    year: 2026,
+    source: "historical",
+    ballotCount: 5,
+    works: ["00010", "10", "11", null, "12"].map((id, index) => ({
+      display_order: index + 1,
+      video_id: `sm${index + 1}`,
+      title: `作品${index + 1}`,
+      author_name: "製作者",
+      author_nico_user_id: id,
+    })),
+    entries: [],
+    participatingNicoIds: ["10", "10", "11", "99999", null],
+  });
+  assert.equal(countParticipatingCreators(result.scores), 2);
+  assert.equal(countCreators(result.scores), 3);
+  assert.equal(countCreators([]), 0);
+  assert.equal(
+    countCreators([
+      { author_nico_user_id: null },
+      { author_nico_user_id: "" },
+      { author_nico_user_id: "invalid" },
+      { author_nico_user_id: " 00010 " },
+      { author_nico_user_id: "10" },
+    ]),
+    1,
+  );
+  assert.equal(countParticipatingCreators([]), 0);
+  assert.equal(
+    countParticipatingCreators([
+      { creator_voted: false, author_nico_user_id: "10" },
+      { creator_voted: null, author_nico_user_id: "11" },
+      { creator_voted: true, author_nico_user_id: null },
+    ]),
+    0,
+  );
+});
 const works: TallyWork[] = [1, 2, 3, 4].map((n) => ({
   display_order: n,
   video_id: `sm${n}`,

@@ -194,7 +194,7 @@ test("実PostgreSQL: migration、DB強制検証、RLS、確定票集計・管理
         1,
       );
       await assert.rejects(
-        call(db, U1, "update public.data_profiles set nico_user_id='123'"),
+        call(db, U1, "update public.data_login_user set nico_user_id='123'"),
         /permission denied/,
       );
     },

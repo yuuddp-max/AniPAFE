@@ -56,6 +56,24 @@ export type TallyScore = TallyWork & {
   award_count: number;
   score: number;
 };
+
+export function countCreators(
+  works: readonly Pick<TallyWork, "author_nico_user_id">[],
+): number {
+  return new Set(
+    works.flatMap((work) => {
+      const id = work.author_nico_user_id?.trim();
+      return id && /^[0-9]{1,30}$/.test(id) ? [normalizeNicoId(id)] : [];
+    }),
+  ).size;
+}
+
+export function countParticipatingCreators(
+  works: readonly Pick<TallyScore, "creator_voted" | "author_nico_user_id">[],
+): number {
+  return countCreators(works.filter((work) => work.creator_voted === true));
+}
+
 export type TallyResult = {
   year: number;
   source: string;

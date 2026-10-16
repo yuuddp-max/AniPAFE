@@ -73,6 +73,8 @@ async function prepare() {
 }
 await prepare();
 const tables = new Set([
+  "data_login_user",
+  "data_loginuser",
   "data_profiles",
   "profiles",
   "data_mad",
@@ -233,7 +235,7 @@ const server = createServer(async (req, res) => {
       // Reset all test data, including years added by the previous browser test.
       await fixture.db.transaction(async (tx) => {
         await tx.exec(`delete from public.data_tally_results; delete from public.data_ballots; delete from public.data_ballot;
-          delete from public.data_profiles; delete from public.audit_logs; delete from public.data_mad;
+          delete from public.data_login_user; delete from public.audit_logs; delete from public.data_mad;
           update public.master_event_settings set target_year=2026 where id=1;
           delete from public.master_award_types where year<>2026;
           delete from public.master_poll_settings where year<>2026;
@@ -291,7 +293,7 @@ const server = createServer(async (req, res) => {
     if (req.method !== "GET" || !tables.has(table))
       return send(404, { message: "Unsupported transport" });
     if (
-      ["data_mad", "data_ballot", "data_ballots", "data_profiles"].includes(
+      ["data_mad", "data_ballot", "data_ballots", "data_login_user"].includes(
         table,
       )
     )

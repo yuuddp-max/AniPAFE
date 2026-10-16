@@ -37,7 +37,7 @@ export async function loadAdminYear(
     adminRows<
       AdminVoter & { id: string; year: number; raw_response?: unknown }
     >(db, "data_ballot", year),
-    adminRows<Profile>(db, "data_profiles"),
+    adminRows<Profile>(db, "data_login_user"),
   ]);
   const byId = new Map(profiles.map((p) => [p.user_id, p]));
   const voters = ballots.map((b) => {

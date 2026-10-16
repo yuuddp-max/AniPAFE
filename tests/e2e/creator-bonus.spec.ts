@@ -154,6 +154,12 @@ test("投稿者加点：自己投票禁止→下書き除外→確定で総合1�
   await page.goto("/admin");
   const panel = page.getByRole("region", { name: "Excel方式の集計" });
   await expect(
+    panel
+      .getByLabel("投票集計サマリー", { exact: true })
+      .locator("article")
+      .filter({ hasText: "投票者数（製作者）" }),
+  ).toContainText("1名");
+  await expect(
     panel.getByRole("table", { name: "2026年度 総合賞", exact: true }),
   ).toBeVisible();
   await expect(

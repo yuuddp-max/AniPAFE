@@ -46,7 +46,7 @@ export async function POST(request: Request) {
         current.year,
       ),
       adminRows<Ballot>(db, "data_ballot", current.year),
-      adminRows<Profile>(db, "data_profiles"),
+      adminRows<Profile>(db, "data_login_user"),
     ]);
     if (error || pe) throw new Error("マスター取得に失敗しました。");
     const previous = new Map((old ?? []).map((v) => [v.video_id, v]));
