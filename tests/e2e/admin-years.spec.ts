@@ -496,10 +496,11 @@ test("管理タブの視認性・全幅配置・キーボード操作と集計�
     "投票集計",
     "作為品一覧",
     "投票者一覧",
+    "過去投票者の紐付け",
     "操作履歴",
   ];
   const buttons = navigation.getByRole("button");
-  await expect(buttons).toHaveCount(5);
+  await expect(buttons).toHaveCount(labels.length);
   await expect(
     navigation.getByRole("button", { name: "投票集計", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
@@ -522,7 +523,9 @@ test("管理タブの視認性・全幅配置・キーボード操作と集計�
           .evaluate(
             (el) =>
               el.getBoundingClientRect().height <=
-              parseFloat(getComputedStyle(el).lineHeight) + 1,
+              parseFloat(getComputedStyle(el).lineHeight) *
+                (el.textContent === "過去投票者の紐付け" ? 2 : 1) +
+                1,
           ),
         `${width}px ${labels[i]} label`,
       ).toBeTruthy();
@@ -538,9 +541,11 @@ test("管理タブの視認性・全幅配置・キーボード操作と集計�
     ).toBeTruthy();
     if (width > 980) {
       expect(
-        Math.max(...positions.map((p) => p.y)) -
-          Math.min(...positions.map((p) => p.y)),
+        Math.max(...positions.slice(0, 3).map((p) => p.y)) -
+          Math.min(...positions.slice(0, 3).map((p) => p.y)),
       ).toBeLessThan(1);
+      expect(positions[3].y).toBeGreaterThan(positions[0].y);
+      expect(positions[3].y).toBe(positions[5].y);
       expect(
         Math.max(...positions.map((p) => p.width)) -
           Math.min(...positions.map((p) => p.width)),

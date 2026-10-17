@@ -5,6 +5,7 @@ import { createServer } from "node:http";
 import { createHmac } from "node:crypto";
 import { database, call, U1, U2, ADMIN } from "./database";
 import { fixtureSeedSql } from "./fixtures";
+import { adminPerformance } from "./admin-performance";
 const fixture = await database();
 const users = { voter: U1, other: U2, admin: ADMIN };
 const sessions = new Map<string, string>();
@@ -129,6 +130,23 @@ const server = createServer(async (req, res) => {
   }
   try {
     if (url.pathname === "/health") return send(200, { ok: true });
+    if (url.pathname === "/__test/admin-performance") {
+      if (req.method === "POST") {
+        adminPerformance.requests = [];
+        adminPerformance.delayMs = Math.min(
+          500,
+          Math.max(0, Number(url.searchParams.get("delay") ?? 0)),
+        );
+      }
+      return send(200, adminPerformance);
+    }
+    if (url.pathname.startsWith("/rest/v1/")) {
+      adminPerformance.requests.push(url.pathname + url.search);
+      if (adminPerformance.delayMs)
+        await new Promise((resolve) =>
+          setTimeout(resolve, adminPerformance.delayMs),
+        );
+    }
     if (url.pathname === "/__test/tally-storage") {
       const stored = await fixture.db.query(
         "select year,source,score_denominator,calculated_at from public.data_tally_results order by year,source,score_denominator",

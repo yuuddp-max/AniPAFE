@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { AdminYearData, Poll } from "@/lib/types";
 type Preview = {
@@ -21,17 +21,20 @@ type Preview = {
 
 export function AdminYearWorkspace({
   years,
-  initialData,
+  kind,
+  initialYear,
+  refreshToken,
 }: {
   years: Poll[];
-  initialData: AdminYearData;
+  kind: "videos" | "voters";
+  initialYear: number;
+  refreshToken: object;
 }) {
   const router = useRouter();
-  const kind = initialData.kind;
   const label = kind === "videos" ? "作為品一覧" : "投票者一覧";
-  const [year, setYear] = useState(initialData.year);
-  const [data, setData] = useState<AdminYearData | null>(initialData);
-  const [loading, setLoading] = useState(false);
+  const [year, setYear] = useState(initialYear);
+  const [data, setData] = useState<AdminYearData | null>(null);
+  const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -41,11 +44,12 @@ export function AdminYearWorkspace({
   const requestId = useRef(0);
   const controller = useRef<AbortController | null>(null);
   useEffect(() => () => controller.current?.abort(), []);
+  const refresh = useEffectEvent(() => {
+    void load(year);
+  });
   useEffect(() => {
-    setData((previous) =>
-      previous?.year === initialData.year ? initialData : previous,
-    );
-  }, [initialData]);
+    refresh();
+  }, [refreshToken]);
   async function load(nextYear: number) {
     const id = ++requestId.current;
     controller.current?.abort();
@@ -64,11 +68,12 @@ export function AdminYearWorkspace({
       );
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
-      if (id === requestId.current) setData(result);
+      if (id === requestId.current && !abort.signal.aborted) setData(result);
     } catch (e) {
-      if (id === requestId.current) setError((e as Error).message);
+      if (id === requestId.current && !abort.signal.aborted)
+        setError((e as Error).message);
     } finally {
-      if (id === requestId.current) setLoading(false);
+      if (id === requestId.current && !abort.signal.aborted) setLoading(false);
     }
   }
   async function action(body: Record<string, unknown>) {

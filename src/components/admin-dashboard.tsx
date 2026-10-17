@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import {
   CalendarDays,
@@ -9,12 +10,30 @@ import {
   Link2,
   UsersRound,
 } from "lucide-react";
-import type { AdminYearData, Poll } from "@/lib/types";
-import { AdminYearWorkspace } from "@/components/admin-year-workspace";
-import { jst } from "@/lib/validation";
+import type { Poll } from "@/lib/types";
 import { TallyPanel } from "@/components/tally-panel";
 import type { AdminTallyResult } from "@/lib/tally";
-import { HistoricalVoterLinks } from "@/components/historical-voter-links";
+function PanelLoading() {
+  return <p role="status">管理機能を読み込んでいます…</p>;
+}
+const AdminYearWorkspace = dynamic(
+  () =>
+    import("@/components/admin-year-workspace").then(
+      (m) => m.AdminYearWorkspace,
+    ),
+  { loading: PanelLoading },
+);
+const HistoricalVoterLinks = dynamic(
+  () =>
+    import("@/components/historical-voter-links").then(
+      (m) => m.HistoricalVoterLinks,
+    ),
+  { loading: PanelLoading },
+);
+const AdminAudit = dynamic(
+  () => import("@/components/admin-audit").then((m) => m.AdminAudit),
+  { loading: PanelLoading },
+);
 const adminTabs = [
   {
     key: "settings",
@@ -58,9 +77,6 @@ export function AdminDashboard({
   initialTally,
   poll,
   years,
-  initialVideos,
-  initialVoters,
-  audit,
 }: {
   initialTally: AdminTallyResult;
   report: {
@@ -68,20 +84,13 @@ export function AdminDashboard({
   };
   poll: Poll;
   years: Poll[];
-  initialVideos: AdminYearData;
-  initialVoters: AdminYearData;
-  audit: {
-    id: number;
-    action: string;
-    target: string | null;
-    created_at: string;
-    summary: Record<string, unknown>;
-  }[];
 }) {
   const router = useRouter(),
     [tab, setTab] = useState("ranking"),
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false);
+  // Keep visited workspaces mounted so their selected year and edits survive tab switches.
+  const [visited, setVisited] = useState<string[]>(["ranking"]);
   const [start, setStart] = useState(localDate(poll.starts_at)),
     [end, setEnd] = useState(localDate(poll.ends_at)),
     [published, setPublished] = useState(poll.is_published),
@@ -169,7 +178,12 @@ export function AdminDashboard({
             aria-describedby={`admin-tab-description-${key}`}
             aria-controls={`admin-panel-${key}`}
             aria-pressed={tab === key}
-            onClick={() => setTab(key)}
+            onClick={() => {
+              setTab(key);
+              setVisited((previous) =>
+                previous.includes(key) ? previous : [...previous, key],
+              );
+            }}
             key={key}
           >
             <span className="admin-tab-icon" aria-hidden="true">
@@ -198,7 +212,14 @@ export function AdminDashboard({
         />
       </div>
       <div id="admin-panel-videos" hidden={tab !== "videos"}>
-        <AdminYearWorkspace years={years} initialData={initialVideos} />
+        {visited.includes("videos") && (
+          <AdminYearWorkspace
+            years={years}
+            kind="videos"
+            initialYear={poll.year}
+            refreshToken={initialTally}
+          />
+        )}
       </div>
       <div id="admin-panel-settings" hidden={tab !== "settings"}>
         <section className="admin-year-bar" aria-label="対象年度の管理">
@@ -351,31 +372,17 @@ export function AdminDashboard({
         </form>
       </div>
       <div id="admin-panel-voters" hidden={tab !== "voters"}>
-        <AdminYearWorkspace years={years} initialData={initialVoters} />
+        {visited.includes("voters") && (
+          <AdminYearWorkspace
+            years={years}
+            kind="voters"
+            initialYear={poll.year}
+            refreshToken={initialTally}
+          />
+        )}
       </div>
       <div id="admin-panel-audit" hidden={tab !== "audit"}>
-        <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>日時</th>
-                <th>操作</th>
-                <th>対象</th>
-                <th>記録</th>
-              </tr>
-            </thead>
-            <tbody>
-              {audit.map((a) => (
-                <tr key={a.id}>
-                  <td>{jst(a.created_at)}</td>
-                  <td>{a.action}</td>
-                  <td>{a.target}</td>
-                  <td>{JSON.stringify(a.summary)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {tab === "audit" && <AdminAudit refreshToken={initialTally} />}
       </div>
       <div
         id="admin-panel-historical-links"
