@@ -4,8 +4,7 @@ import { pageUser } from "./auth";
 import type { VoteData } from "./types";
 import { currentPoll } from "./poll";
 export async function voteData(): Promise<VoteData> {
-  const { db, user } = await pageUser();
-  const poll = await currentPoll(db);
+  const [{ db, user }, poll] = await Promise.all([pageUser(), currentPoll()]);
   const results = await Promise.all([
     db.from("data_login_user").select("*").eq("user_id", user.id).maybeSingle(),
     db.from("master_award_types").select("*").order("display_order"),

@@ -19,7 +19,7 @@ export default defineConfig({
       timeout: 30000,
     },
     {
-      command: `npm run dev -- --port ${new URL(appOrigin).port || "3000"}`,
+      command: `npm run ${process.env.ANIPAFE_TEST_PRODUCTION === "1" ? "start" : "dev"} -- --port ${new URL(appOrigin).port || "3000"}`,
       url: `${appOrigin}/login`,
       reuseExistingServer: false,
       timeout: 120000,

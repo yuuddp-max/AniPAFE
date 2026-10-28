@@ -14,13 +14,8 @@ export async function generateMetadata(): Promise<Metadata> {
     robots: { index: false, follow: false },
   };
 }
-export default async function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+async function navigationAccount() {
   const auth = await identity();
-  const poll = await pollHeader();
   let name: string | null = null;
   let admin = false;
   if (auth) {
@@ -44,6 +39,17 @@ export default async function RootLayout({
         "Googleユーザー");
     admin = !access.error && !!access.data;
   }
+  return { name, admin, avatarUrl: auth ? googleAvatar(auth.user) : null };
+}
+export default async function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [account, poll] = await Promise.all([
+    navigationAccount(),
+    pollHeader(),
+  ]);
   return (
     <html lang="ja" data-scroll-behavior="smooth">
       <body>
@@ -60,11 +66,7 @@ export default async function RootLayout({
               <small>AMV/MAD FESTIVAL in JAPAN</small>
             </span>
           </Link>
-          <UserNav
-            name={name}
-            admin={admin}
-            avatarUrl={auth ? googleAvatar(auth.user) : null}
-          />
+          <UserNav {...account} />
         </header>
         {children}
         <footer className="site-footer">

@@ -7,6 +7,7 @@ import {
   useState,
   useCallback,
 } from "react";
+import { useRouter } from "next/navigation";
 import type { Entry, LinkedOriginalVote, VoteData } from "@/lib/types";
 import { initialVoteSource } from "@/lib/original-votes";
 type Votes = {
@@ -30,6 +31,7 @@ export function VoteProvider({
   data: VoteData;
   children: React.ReactNode;
 }) {
+  const router = useRouter();
   const [entries, setEntries] = useState(data.entries),
     [state, setState] = useState<Votes["state"]>("saved"),
     [message, setMessage] = useState(""),
@@ -148,7 +150,7 @@ export function VoteProvider({
       event.preventDefault();
       event.stopImmediatePropagation();
       void save().then((ok) => {
-        if (ok) window.location.assign(url.href);
+        if (ok) router.push(`${url.pathname}${url.search}${url.hash}`);
       });
     }
     function logout(event: SubmitEvent) {
@@ -171,7 +173,7 @@ export function VoteProvider({
       document.removeEventListener("click", leave, true);
       document.removeEventListener("submit", logout, true);
     };
-  }, [save]);
+  }, [save, router]);
   return (
     <Context.Provider
       value={{

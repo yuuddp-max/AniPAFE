@@ -15,9 +15,12 @@ export const pollHeader = cache(
   },
 );
 
-export async function currentPoll(db: SupabaseClient): Promise<Poll> {
-  const { year } = await pollHeader();
-  const { data, error } = await db
+export async function currentPoll(db?: SupabaseClient): Promise<Poll> {
+  const [{ year }, client] = await Promise.all([
+    pollHeader(),
+    db ?? supabase(),
+  ]);
+  const { data, error } = await client
     .from("master_poll_settings")
     .select("*")
     .eq("year", year)

@@ -7,11 +7,15 @@ test("運営管理の初期表示で必要な通信だけを実行する", async
   request,
 }) => {
   await request.post(`${harness}/__test/reset`);
-  await context.route("**/*", (route) =>
-    ["localhost", "127.0.0.1"].includes(new URL(route.request().url()).hostname)
+  await context.route("**/*", (route) => {
+    // Measure this page's initial reads separately from production navigation prefetches.
+    if (route.request().headers()["next-router-prefetch"]) return route.abort();
+    return ["localhost", "127.0.0.1"].includes(
+      new URL(route.request().url()).hostname,
+    )
       ? route.continue()
-      : route.abort(),
-  );
+      : route.abort();
+  });
   const cookie = await (
     await request.get(`${harness}/__test/session?user=admin`)
   ).json();
