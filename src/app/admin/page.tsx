@@ -20,7 +20,7 @@ export default async function AdminPage() {
       .from("master_poll_settings")
       .select("*")
       .order("year", { ascending: false }),
-    loadTally(db, poll.year, "auto", 143, true),
+    loadTally(db, poll.year, "auto", 143),
   ]);
   for (const r of [report, years])
     if (r.error) throw new Error("運営データの読み込みに失敗しました。");

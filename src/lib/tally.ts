@@ -99,6 +99,7 @@ export type TallyDetail = {
   source_timestamp: string | null;
 };
 export type AdminTallyResult = TallyResult & {
+  detail_count?: number;
   calculated_at?: string;
   historical_ballot_count: number;
   historical_selection_count: number;

@@ -12,7 +12,30 @@ import type { Profile } from "./types";
 import { HttpError } from "./auth";
 
 // Bump when tally rules or the stored payload change.
-const calculationVersion = 2;
+const calculationVersion = 3;
+
+// Project JSON fields in PostgREST so full comments never cross the DB connection
+// for a summary request. The full snapshot remains available to legacy CSV readers.
+const summaryFields = [
+  "year",
+  "source",
+  "work_count",
+  "ballot_count",
+  "selection_count",
+  "comment_only_count",
+  "score_denominator",
+  "provisional",
+  "warnings",
+  "rankings",
+  "scores",
+  "historical_ballot_count",
+  "historical_selection_count",
+  "detail_count",
+];
+const summarySelect = [
+  "calculated_at",
+  ...summaryFields.map((key) => `${key}:result->${key}`),
+].join(",");
 
 export type TallyBallot = {
   id: string;
@@ -53,7 +76,7 @@ export async function loadTally(
     if (stateError) throw stateError;
     const { data: saved, error: readError } = await db
       .from("data_tally_results")
-      .select("result,calculated_at")
+      .select(includeDetails ? "result,calculated_at" : summarySelect)
       .eq("year", year)
       .eq("source", state.source)
       .eq("score_denominator", scoreDenominator)
@@ -62,7 +85,12 @@ export async function loadTally(
       .maybeSingle();
     if (readError) throw readError;
     if (!force && saved) {
-      const result = { ...saved.result, calculated_at: saved.calculated_at };
+      const row = saved as unknown as AdminTallyResult & {
+        result: AdminTallyResult;
+      };
+      const result = includeDetails
+        ? { ...row.result, calculated_at: row.calculated_at }
+        : row;
       if (!includeDetails) delete result.details;
       return result;
     }
@@ -95,6 +123,57 @@ export async function loadTally(
     409,
     "集計中に投票データが更新されました。再度読み込んでください。",
   );
+}
+
+export async function loadTallyDetailPage(
+  db: SupabaseClient,
+  year: number,
+  source: "site" | "historical",
+  denominator: number,
+  page: number,
+  calculatedAt: string,
+) {
+  const { data: state, error: stateError } = await db.rpc("admin_tally_state", {
+    p_year: year,
+    p_source: source,
+  });
+  if (stateError) throw stateError;
+  const select = [
+    "calculated_at",
+    "total:result->detail_count",
+    ...Array.from(
+      { length: 50 },
+      (_, i) => `item_${i}:result->details->${page * 50 + i}`,
+    ),
+  ].join(",");
+  const { data, error } = await db
+    .from("data_tally_results")
+    .select(select)
+    .eq("year", year)
+    .eq("source", source)
+    .eq("score_denominator", denominator)
+    .eq("calculation_version", calculationVersion)
+    .eq("input_revision", state.revision)
+    .eq("calculated_at", calculatedAt)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data)
+    throw new HttpError(
+      409,
+      "集計結果が更新されました。再集計してから明細を開いてください。",
+    );
+  const row = data as unknown as {
+    total: number;
+    calculated_at: string;
+  } & Record<string, import("./tally").TallyDetail | null>;
+  return {
+    page,
+    total: row.total,
+    calculated_at: row.calculated_at,
+    details: Array.from({ length: 50 }, (_, i) => row[`item_${i}`]).filter(
+      (item) => item != null,
+    ),
+  };
 }
 
 async function calculateTally(
@@ -188,5 +267,6 @@ async function calculateTally(
       };
     });
   }
+  result.detail_count = result.details?.length ?? 0;
   return result;
 }

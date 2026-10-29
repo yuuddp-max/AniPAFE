@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { tallyAwards, type AdminTallyResult } from "@/lib/tally";
 import { jst } from "@/lib/validation";
+import { TallyDetails } from "@/components/tally-details";
 import { TallyMetrics } from "@/components/tally-overview";
 
 function CreatorParticipation({ voted }: { voted: boolean | null }) {
@@ -41,7 +42,7 @@ export function TallyPanel({
     String(initialResult.score_denominator),
   );
   const [result, setResult] = useState<AdminTallyResult | null>(initialResult);
-  const [detailPage, setDetailPage] = useState(0);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [award, setAward] = useState("overall");
   const [view, setView] = useState("ranking");
   const [query, setQuery] = useState("");
@@ -55,7 +56,7 @@ export function TallyPanel({
   function clear() {
     requestId.current++;
     setResult(null);
-    setDetailPage(0);
+    setDetailsOpen(false);
     setError("");
     setBusy(false);
   }
@@ -72,7 +73,6 @@ export function TallyPanel({
         year: String(year),
         source,
         denominator,
-        include_details: "1",
       });
       const response = await fetch(`/api/admin/tally?${query}`, {
         method: force ? "POST" : "GET",
@@ -82,7 +82,7 @@ export function TallyPanel({
       if (!response.ok) throw new Error(data.error);
       if (id === requestId.current) {
         setResult(data);
-        setDetailPage(0);
+        setDetailsOpen(false);
       }
     } catch (e) {
       if (id === requestId.current) setError((e as Error).message);
@@ -555,67 +555,27 @@ export function TallyPanel({
                 {result.source === "historical"
                   ? "過去フォーム原本（暫定）"
                   : "サイト確定票"}
-                ：{result.details?.length ?? 0}
+                ：{result.detail_count ?? 0}
                 明細（作品選択なしの感想を含む）。投票者情報・感想は運営者限定です。
               </p>
-              <div className="admin-toolbar">
-                <button
-                  className="button secondary small"
-                  disabled={detailPage === 0}
-                  onClick={() => setDetailPage((p) => p - 1)}
-                >
-                  前の50明細
-                </button>
-                <span>
-                  {detailPage + 1} /{" "}
-                  {Math.max(1, Math.ceil((result.details?.length ?? 0) / 50))}
-                  ページ
-                </span>
-                <button
-                  className="button secondary small"
-                  disabled={
-                    (detailPage + 1) * 50 >= (result.details?.length ?? 0)
-                  }
-                  onClick={() => setDetailPage((p) => p + 1)}
-                >
-                  次の50明細
-                </button>
-              </div>
-              <div className="table-scroll">
-                <table>
-                  <caption>
-                    投票明細（全{result.details?.length ?? 0}件）
-                  </caption>
-                  <thead>
-                    <tr>
-                      <th>部門・作品</th>
-                      <th>投票者</th>
-                      <th>感想</th>
-                      <th>投票日時</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {result.details
-                      ?.slice(detailPage * 50, (detailPage + 1) * 50)
-                      .map((d) => (
-                        <tr key={d.id}>
-                          <td>
-                            {d.award_name}
-                            <small>{d.title}</small>
-                          </td>
-                          <td>
-                            {d.display_name}
-                            <small>ID: {d.nico_user_id || "未記入"}</small>
-                          </td>
-                          <td className="comment-cell">
-                            {d.comment || "（未入力）"}
-                          </td>
-                          <td>{jst(d.timestamp)}</td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-              </div>
+              <button
+                className="button secondary small"
+                aria-expanded={detailsOpen}
+                aria-controls="tally-details-content"
+                onClick={() => setDetailsOpen((open) => !open)}
+              >
+                {detailsOpen
+                  ? "投票明細・感想を閉じる"
+                  : "投票明細・感想を開く"}
+              </button>
+              {detailsOpen && (
+                <div id="tally-details-content">
+                  <TallyDetails
+                    key={`${result.year}:${result.source}:${result.score_denominator}:${result.calculated_at}`}
+                    result={result}
+                  />
+                </div>
+              )}
             </section>
           )}
         </>

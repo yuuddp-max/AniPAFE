@@ -332,6 +332,11 @@ test("Excel集計：権限・原本1206明細のページング・年度独立�
   ).toContainText("1206");
   const detailSection = panel.getByRole("region", { name: "投票明細・感想" });
   await expect(detailSection).toContainText("1206明細");
+  expect(initialHtml).not.toContain("原本の回答者");
+  await expect(detailSection.locator("tbody tr")).toHaveCount(0);
+  await detailSection
+    .getByRole("button", { name: "投票明細・感想を開く", exact: true })
+    .click();
   await expect(detailSection.locator("tbody tr")).toHaveCount(50);
   await expect(detailSection).toContainText("原本の回答者");
   await detailSection.getByRole("button", { name: "次の50明細" }).click();

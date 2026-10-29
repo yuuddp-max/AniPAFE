@@ -385,9 +385,24 @@ const server = createServer(async (req, res) => {
       } else if (value === "is.null") conditions.push(`${key} is null`);
       else throw new Error("Unsupported filter");
     }
-    const select = url.searchParams.get("select") ?? "*";
-    if (select !== "*" && !/^[a-z_,]+$/.test(select))
-      throw new Error("Invalid select");
+    const requestedSelect = url.searchParams.get("select") ?? "*";
+    // Translate only the documented JSON projections used by tally reads.
+    const select =
+      requestedSelect === "*"
+        ? "*"
+        : requestedSelect
+            .split(",")
+            .map((field) => {
+              if (/^[a-z_]+$/.test(field)) return field;
+              const json =
+                /^([a-z_][a-z_0-9]*):result->([a-z_]+)(?:->([0-9]+))?$/.exec(
+                  field,
+                );
+              if (!json || table !== "data_tally_results")
+                throw new Error("Invalid select");
+              return `result->'${json[2]}'${json[3] === undefined ? "" : `->${Number(json[3])}`} as ${json[1]}`;
+            })
+            .join(",");
     let order = "";
     const o = url.searchParams.get("order");
     if (o) {
