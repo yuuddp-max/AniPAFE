@@ -35,7 +35,14 @@ test("運営管理の初期表示で必要な通信だけを実行する", async
     const metrics = await (
       await request.get(`${harness}/__test/admin-performance`)
     ).json();
-    expect(metrics.requests.length).toBeLessThanOrEqual(8);
+    expect(metrics.requests.length).toBeLessThanOrEqual(7);
+    const settingsReads = metrics.requests.filter((url: string) =>
+      url.includes("/rest/v1/master_poll_settings?"),
+    );
+    expect(settingsReads).toHaveLength(1);
+    expect(new URL(settingsReads[0], harness).searchParams.has("year")).toBe(
+      false,
+    );
     expect(
       metrics.requests.some(
         (url: string) =>
