@@ -132,7 +132,28 @@ export async function loadTallyDetailPage(
   denominator: number,
   page: number,
   calculatedAt: string,
+  filters?: { query: string; awardName: string; commentsOnly: boolean },
 ) {
+  if (filters && (filters.query || filters.awardName || filters.commentsOnly)) {
+    const { data, error } = await db.rpc("admin_search_tally_details", {
+      p_year: year,
+      p_source: source,
+      p_denominator: denominator,
+      p_version: calculationVersion,
+      p_calculated_at: calculatedAt,
+      p_page: page,
+      p_query: filters.query,
+      p_award_name: filters.awardName,
+      p_comments_only: filters.commentsOnly,
+    });
+    if (error) throw error;
+    if (!data)
+      throw new HttpError(
+        409,
+        "集計結果が更新されました。再集計してから明細を開いてください。",
+      );
+    return data;
+  }
   const { data: state, error: stateError } = await db.rpc("admin_tally_state", {
     p_year: year,
     p_source: source,

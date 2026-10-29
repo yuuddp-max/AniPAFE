@@ -48,12 +48,10 @@ test("集計初期表示の転送量と明細の遅延取得・権限・ペー�
     initialDetailRequests,
   };
   console.log("tally-initial", JSON.stringify(metric));
-  await test
-    .info()
-    .attach("tally-initial", {
-      body: JSON.stringify(metric),
-      contentType: "application/json",
-    });
+  await test.info().attach("tally-initial", {
+    body: JSON.stringify(metric),
+    contentType: "application/json",
+  });
   await request.post(`${harness}/__test/admin-performance?delay=0`);
   if (process.env.ANIPAFE_BASELINE === "1") return;
   expect(initialDetailRequests).toBe(0);
@@ -84,6 +82,64 @@ test("集計初期表示の転送量と明細の遅延取得・権限・ペー�
     ),
   ).toBe(false);
   expect((await page.request.get(endpoint + "&page=-1")).status()).toBe(400);
+  const all = await (
+    await page.request.get(
+      "/api/admin/tally?year=2025&source=historical&include_details=1",
+    )
+  ).json();
+  const reference = all.details as {
+    id: string;
+    title: string;
+    display_name: string;
+    nico_user_id: string;
+    comment: string;
+    video_id: string;
+    award_name: string;
+  }[];
+  // Include values from the final page so searching only the visible 50 cannot pass.
+  for (const term of [
+    last.details[5].display_name,
+    last.details[5].title,
+    "%_",
+    "該当しない検証語",
+    "ＢＬＵＥ",
+  ]) {
+    const found = await (
+      await page.request.get(endpoint + "&q=" + encodeURIComponent(term))
+    ).json();
+    const expected = reference.filter((d) =>
+      [d.title, d.display_name, d.nico_user_id, d.comment, d.video_id]
+        .join(" ")
+        .normalize("NFKC")
+        .toLowerCase()
+        .includes(term.normalize("NFKC").toLowerCase()),
+    );
+    expect(found.total).toBe(expected.length);
+    expect(found.details.map((d: { id: string }) => d.id)).toEqual(
+      expected.slice(0, 50).map((d) => d.id),
+    );
+  }
+  const filteredEndpoint = endpoint + "&award=music&comments_only=1";
+  const expectedComments = reference.filter(
+    (d) => d.award_name === "選曲賞" && d.comment.trim(),
+  );
+  const comments = await (await page.request.get(filteredEndpoint)).json();
+  expect(comments.total).toBe(expectedComments.length);
+  expect(comments.details.map((d: { id: string }) => d.id)).toEqual(
+    expectedComments.slice(0, 50).map((d) => d.id),
+  );
+  const nextComments = await (
+    await page.request.get(filteredEndpoint + "&page=1")
+  ).json();
+  expect(nextComments.details.map((d: { id: string }) => d.id)).toEqual(
+    expectedComments.slice(50, 100).map((d) => d.id),
+  );
+  expect((await page.request.get(endpoint + "&award=invalid")).status()).toBe(
+    400,
+  );
+  expect(
+    (await page.request.get(endpoint + "&q=" + "x".repeat(201))).status(),
+  ).toBe(400);
   const anonymous = await request.get(origin + endpoint);
   expect(anonymous.status()).toBe(401);
   const userCookie = await (
@@ -114,6 +170,28 @@ test("集計初期表示の転送量と明細の遅延取得・権限・ペー�
     .getByRole("button", { name: "明細を再読み込み", exact: true })
     .click();
   await expect(section.locator("tbody tr")).toHaveCount(50);
+  await section.getByLabel("明細の部門", { exact: true }).selectOption("music");
+  await section.getByLabel("感想ありのみ", { exact: true }).check();
+  await section.getByRole("button", { name: "検索", exact: true }).click();
+  await expect(section.getByRole("status")).toHaveText(
+    `検索結果：${expectedComments.length}件（全1206明細）`,
+  );
+  await expect(section.locator("tbody tr")).toHaveCount(
+    Math.min(50, expectedComments.length),
+  );
+  await section.screenshot({ path: "artifacts/tally-detail-search.png" });
+  await section
+    .getByLabel("明細を検索", { exact: true })
+    .fill("該当しない検証語");
+  await section.getByRole("button", { name: "検索", exact: true }).click();
+  await expect(section.getByRole("status")).toHaveText(
+    "検索結果：0件（全1206明細）",
+  );
+  await expect(section.locator("tbody tr")).toHaveCount(0);
+  await section
+    .getByRole("button", { name: "検索条件をクリア", exact: true })
+    .click();
+  await expect(section.locator("tbody tr")).toHaveCount(50);
   await section
     .getByRole("button", { name: "次の50明細", exact: true })
     .click();
@@ -121,4 +199,5 @@ test("集計初期表示の転送量と明細の遅延取得・権限・ペー�
   await expect(section.locator("tbody tr")).toHaveCount(50);
   await request.post(`${harness}/__test/tally-edit`);
   expect((await page.request.get(endpoint)).status()).toBe(409);
+  expect((await page.request.get(filteredEndpoint)).status()).toBe(409);
 });

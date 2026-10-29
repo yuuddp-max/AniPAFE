@@ -2,7 +2,7 @@ import { z } from "zod";
 import { apiAdmin, HttpError } from "@/lib/auth";
 import { checkOrigin, handle } from "@/lib/http";
 import { loadTally, loadTallyDetailPage } from "@/lib/tally-data";
-import { tallyCsvRows } from "@/lib/tally";
+import { tallyAwards, tallyCsvRows } from "@/lib/tally";
 import { csv } from "@/lib/validation";
 
 const querySchema = z.object({
@@ -13,6 +13,11 @@ const querySchema = z.object({
     .enum(["json", "ranking", "score", "details", "detail-page"])
     .default("json"),
   page: z.coerce.number().int().min(0).max(100000).default(0),
+  q: z.string().trim().max(200).default(""),
+  award: z
+    .enum(["", "overall", "music", "composition", "humor", "creative", "theme"])
+    .default(""),
+  comments_only: z.enum(["0", "1"]).default("0"),
   calculated_at: z.iso.datetime({ offset: true }).optional(),
   include_details: z.enum(["0", "1"]).default("0"),
 });
@@ -46,6 +51,12 @@ function respond(request: Request, force: boolean) {
         input.denominator,
         input.page,
         input.calculated_at,
+        {
+          query: input.q,
+          awardName:
+            tallyAwards.find((a) => a.code === input.award)?.name ?? "",
+          commentsOnly: input.comments_only === "1",
+        },
       );
     }
     const result = await loadTally(

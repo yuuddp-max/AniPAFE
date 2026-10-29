@@ -117,6 +117,7 @@ const functions = new Set([
   "manage_year",
   "vote_history",
   "admin_tally_state",
+  "admin_search_tally_details",
   "admin_save_tally_result",
 ]);
 const server = createServer(async (req, res) => {
