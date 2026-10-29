@@ -12,7 +12,7 @@ import type { Profile } from "./types";
 import { HttpError } from "./auth";
 
 // Bump when tally rules or the stored payload change.
-const calculationVersion = 3;
+const calculationVersion = 4;
 
 // Project JSON fields in PostgREST so full comments never cross the DB connection
 // for a summary request. The full snapshot remains available to legacy CSV readers.
@@ -132,20 +132,37 @@ export async function loadTallyDetailPage(
   denominator: number,
   page: number,
   calculatedAt: string,
-  filters?: { query: string; awardName: string; commentsOnly: boolean },
+  filters?: {
+    query: string;
+    awardName: string;
+    commentsOnly: boolean;
+    workNumber?: number;
+  },
 ) {
-  if (filters && (filters.query || filters.awardName || filters.commentsOnly)) {
-    const { data, error } = await db.rpc("admin_search_tally_details", {
-      p_year: year,
-      p_source: source,
-      p_denominator: denominator,
-      p_version: calculationVersion,
-      p_calculated_at: calculatedAt,
-      p_page: page,
-      p_query: filters.query,
-      p_award_name: filters.awardName,
-      p_comments_only: filters.commentsOnly,
-    });
+  if (
+    filters &&
+    (filters.query ||
+      filters.awardName ||
+      filters.commentsOnly ||
+      filters.workNumber)
+  ) {
+    const { data, error } = await db.rpc(
+      filters.workNumber
+        ? "admin_work_tally_details"
+        : "admin_search_tally_details",
+      {
+        p_year: year,
+        p_source: source,
+        p_denominator: denominator,
+        p_version: calculationVersion,
+        p_calculated_at: calculatedAt,
+        p_page: page,
+        p_query: filters.query,
+        p_award_name: filters.awardName,
+        p_comments_only: filters.commentsOnly,
+        ...(filters.workNumber ? { p_work_number: filters.workNumber } : {}),
+      },
+    );
     if (error) throw error;
     if (!data)
       throw new HttpError(
@@ -273,6 +290,10 @@ async function calculateTally(
       const profile = b.voter_id ? profileMap.get(b.voter_id) : null;
       return {
         id: e.id,
+        work_number:
+          (e.video_id ? videos.get(e.video_id)?.display_order : null) ??
+          e.source_video_number ??
+          null,
         award_name: tallyAwards.find((a) => a.code === e.award_code)!.name,
         video_id: e.video_id,
         title:

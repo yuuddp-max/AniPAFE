@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import {
   Download,
   Info,
@@ -7,10 +8,17 @@ import {
   Search,
   SlidersHorizontal,
 } from "lucide-react";
-import { tallyAwards, type AdminTallyResult } from "@/lib/tally";
+import {
+  tallyAwards,
+  type AdminTallyResult,
+  type TallyWork,
+} from "@/lib/tally";
 import { jst } from "@/lib/validation";
 import { TallyDetails } from "@/components/tally-details";
 import { TallyMetrics } from "@/components/tally-overview";
+const TallyWorkDetail = dynamic(() =>
+  import("./tally-work-detail").then((module) => module.TallyWorkDetail),
+);
 
 function CreatorParticipation({ voted }: { voted: boolean | null }) {
   const label =
@@ -43,6 +51,27 @@ export function TallyPanel({
   );
   const [result, setResult] = useState<AdminTallyResult | null>(initialResult);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [selectedWork, setSelectedWork] = useState<{
+    work: TallyWork;
+    result: AdminTallyResult;
+    trigger: HTMLButtonElement;
+  } | null>(null);
+  function workTitle(work: TallyWork) {
+    return showDetails && result ? (
+      <button
+        type="button"
+        className="tally-work-link"
+        aria-haspopup="dialog"
+        onClick={(event) =>
+          setSelectedWork({ work, result, trigger: event.currentTarget })
+        }
+      >
+        {work.title}
+      </button>
+    ) : (
+      <strong>{work.title}</strong>
+    );
+  }
   const [award, setAward] = useState("overall");
   const [view, setView] = useState("ranking");
   const [query, setQuery] = useState("");
@@ -253,6 +282,15 @@ export function TallyPanel({
             {result.calculated_at && ` 集計日時：${jst(result.calculated_at)}`}
           </p>
           <TallyMetrics result={result} />
+          {selectedWork?.result === result && (
+            <TallyWorkDetail
+              key={`${result.year}:${result.calculated_at}:${selectedWork.work.display_order}`}
+              result={result}
+              work={selectedWork.work}
+              returnFocus={selectedWork.trigger}
+              onClose={() => setSelectedWork(null)}
+            />
+          )}
           <section className="tally-results-card" aria-label="集計順位とスコア">
             <div className="tally-section-heading tally-results-heading">
               <div>
@@ -370,7 +408,7 @@ export function TallyPanel({
                           <small>
                             No.{String(row.display_order).padStart(3, "0")}
                           </small>
-                          <strong>{row.title}</strong>
+                          {workTitle(row)}
                           <span>
                             {row.author_name}{" "}
                             <CreatorParticipation voted={row.creator_voted} />
@@ -437,7 +475,7 @@ export function TallyPanel({
                             <small>
                               No.{String(r.display_order).padStart(3, "0")}
                             </small>
-                            <strong>{r.title}</strong>
+                            {workTitle(r)}
                             {r.unmapped && <small>作品未対応</small>}
                           </td>
                           <td className="tally-author-cell">
@@ -509,7 +547,7 @@ export function TallyPanel({
                           <small>
                             No.{String(r.display_order).padStart(3, "0")}
                           </small>
-                          <strong>{r.title}</strong>
+                          {workTitle(r)}
                         </td>
                         <td>
                           {r.author_name}{" "}

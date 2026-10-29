@@ -13,6 +13,7 @@ const querySchema = z.object({
     .enum(["json", "ranking", "score", "details", "detail-page"])
     .default("json"),
   page: z.coerce.number().int().min(0).max(100000).default(0),
+  work_number: z.coerce.number().int().min(1).max(2147483647).optional(),
   q: z.string().trim().max(200).default(""),
   award: z
     .enum(["", "overall", "music", "composition", "humor", "creative", "theme"])
@@ -56,6 +57,7 @@ function respond(request: Request, force: boolean) {
           awardName:
             tallyAwards.find((a) => a.code === input.award)?.name ?? "",
           commentsOnly: input.comments_only === "1",
+          workNumber: input.work_number,
         },
       );
     }

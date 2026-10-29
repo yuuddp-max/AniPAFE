@@ -158,6 +158,46 @@ test("集計初期表示の転送量と明細の遅延取得・権限・ペー�
     name: "投票明細・感想",
     exact: true,
   });
+  const workButton = page
+    .locator(".tally-rank-table-scroll .tally-work-link")
+    .first();
+  await workButton.click();
+  const workDialog = page.getByRole("dialog");
+  await expect(workDialog).toBeVisible();
+  const workRows = workDialog.locator("table").first().locator("tbody tr");
+  await expect(workRows).toHaveCount(6);
+  await expect(workRows.first()).toContainText("1206");
+  const workDetails = workDialog.getByRole("region", {
+    name: "この作品の投票明細・感想",
+  });
+  await expect(workDetails.locator("tbody tr")).toHaveCount(50);
+  await workDetails
+    .getByRole("button", { name: "次の50明細", exact: true })
+    .click();
+  await expect(workDetails).toContainText("2 / 25ページ");
+  await expect(workDetails.locator("tbody tr")).toHaveCount(50);
+  await workDialog
+    .getByRole("button", { name: "作品詳細を閉じる", exact: true })
+    .click();
+  await expect(workDialog).toHaveCount(0);
+  await expect(workButton).toBeFocused();
+  await page.getByRole("button", { name: "スコア計算", exact: true }).click();
+  await page.locator(".tally-score-table .tally-work-link").first().click();
+  await expect(workDialog).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(workDialog).toHaveCount(0);
+  await page.getByRole("button", { name: "部門順位", exact: true }).click();
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.locator(".tally-mobile-ranking .tally-work-link").first().click();
+  await expect(workDialog).toBeVisible();
+  await expect(workDetails.locator("tbody tr")).toHaveCount(50);
+  expect(
+    await workDialog.evaluate((el) => el.getBoundingClientRect().width),
+  ).toBeLessThanOrEqual(375);
+  await workDialog.screenshot({ path: "artifacts/work-detail-mobile.png" });
+  await page.keyboard.press("Escape");
+  await expect(workDialog).toHaveCount(0);
+  await page.setViewportSize({ width: 1280, height: 720 });
   await page.route("**/api/admin/tally?*format=detail-page*", (route) =>
     route.fulfill({ status: 500, json: { error: "明細の検証用エラー" } }),
   );
@@ -200,4 +240,7 @@ test("集計初期表示の転送量と明細の遅延取得・権限・ペー�
   await request.post(`${harness}/__test/tally-edit`);
   expect((await page.request.get(endpoint)).status()).toBe(409);
   expect((await page.request.get(filteredEndpoint)).status()).toBe(409);
+  expect((await page.request.get(endpoint + "&work_number=1")).status()).toBe(
+    409,
+  );
 });

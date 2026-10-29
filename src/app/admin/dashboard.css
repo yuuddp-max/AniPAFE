@@ -957,3 +957,35 @@
     font-weight: 400;
   }
 }
+.tally-work-link {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #285c41;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.tally-work-link:focus-visible {
+  outline: 2px solid #285c41;
+  outline-offset: 4px;
+}
+.tally-work-dialog {
+  width: min(1100px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  padding: 24px;
+  border: 1px solid #d8ded4;
+  border-radius: 16px;
+  overflow: auto;
+}
+.tally-work-dialog::backdrop {
+  background: rgb(20 35 25 / 55%);
+}
+.tally-work-dialog h2 {
+  flex: 1;
+  overflow-wrap: anywhere;
+}

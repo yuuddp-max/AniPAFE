@@ -89,6 +89,7 @@ export type TallyResult = {
 };
 export type TallyDetail = {
   id: string;
+  work_number?: number | null;
   award_name: string;
   video_id: string | null;
   title: string;

@@ -4,7 +4,13 @@ import type { AdminTallyResult, TallyDetail } from "@/lib/tally";
 import { tallyAwards } from "@/lib/tally";
 import { jst } from "@/lib/validation";
 
-export function TallyDetails({ result }: { result: AdminTallyResult }) {
+export function TallyDetails({
+  result,
+  workNumber,
+}: {
+  result: AdminTallyResult;
+  workNumber?: number;
+}) {
   const [page, setPage] = useState(0);
   const [attempt, setAttempt] = useState(0);
   const emptyFilters = { q: "", award: "", comments_only: "0" };
@@ -31,6 +37,7 @@ export function TallyDetails({ result }: { result: AdminTallyResult }) {
       page: String(page),
       calculated_at: result.calculated_at!,
       ...filters,
+      ...(workNumber ? { work_number: String(workNumber) } : {}),
     });
     void (async () => {
       try {
@@ -51,7 +58,7 @@ export function TallyDetails({ result }: { result: AdminTallyResult }) {
       }
     })();
     return () => controller.abort();
-  }, [result, page, attempt, filters]);
+  }, [result, page, attempt, filters, workNumber]);
   return (
     <div aria-busy={busy}>
       <form
